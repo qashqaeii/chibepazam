@@ -104,6 +104,8 @@ def verify_seed(cursor) -> None:
 
     cursor.execute("SELECT COUNT(*) FROM ingredients WHERE is_active = 1")
     ingredients = cursor.fetchone()[0]
+    if ingredients < 100:
+        raise RuntimeError(f"ingredients: expected at least 100 rows, found {ingredients}")
     cursor.execute("SELECT COUNT(*) FROM recipe_ingredients")
     links = cursor.fetchone()[0]
     cursor.execute(

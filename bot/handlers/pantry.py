@@ -30,13 +30,14 @@ def show_pantry_main(bot: TeleBot, chat_id: int, message_id: int, user_id: int) 
         emoji="🧺",
         title="مواد داخل خونه",
         description=[
-            "موادی که الان در دسترس داری رو انتخاب کن.",
-            "با انتخاب دقیق‌تر، پیشنهادهای بهتری می‌گیری.",
+            "موادی که الان در دسترس داری رو از دسته‌ها انتخاب کن.",
+            "ادویه و روغن همیشگی را از تنظیمات مشخص کن.",
         ],
         details=[
             f"✅  انتخاب‌شده: <b>{count}</b> مورد",
             f"🏠  مواد همیشگی: <b>{permanent}</b> مورد",
             f"📂  دسته‌بندی: <b>{len(categories)}</b> دسته",
+            f"🥕  مواد قابل انتخاب: <b>{sum(c.get('item_count') or 0 for c in categories)}</b> مورد",
         ],
     )
     safe_edit(bot, chat_id, message_id, text, pantry_main_keyboard(categories, count))

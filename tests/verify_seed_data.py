@@ -21,6 +21,11 @@ def test_seed_integrity():
     assert len({r["id"] for r in RECIPES}) == 20
     assert len({r["slug"] for r in RECIPES}) == 20
     assert len(INGREDIENT_CATEGORIES) == 10
+    assert len(INGREDIENTS) >= 120
+    assert len({i[3] for i in INGREDIENTS if i[5] == 1}) >= 15
+    from collections import Counter
+    per_cat = Counter(i[1] for i in INGREDIENTS)
+    assert all(n >= 6 for n in per_cat.values()), dict(per_cat)
     assert len(RECIPE_CATEGORIES) == 6
 
     for item in INGREDIENTS:
@@ -61,4 +66,5 @@ if __name__ == "__main__":
     vegetarian = [r["name"] for r in RECIPES if r["is_vegetarian"]]
     print(f"recipes={len(RECIPES)} ingredients={len(INGREDIENTS)} links={links}")
     print("vegetarian_count=", len(vegetarian))
+    print("common_pantry=", sum(1 for i in INGREDIENTS if i[5] == 1))
     print("Seed data integrity checks passed.")

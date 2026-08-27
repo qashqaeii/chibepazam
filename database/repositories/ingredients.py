@@ -7,8 +7,13 @@ class IngredientsRepository:
         try:
             cursor = conn.cursor(dictionary=True)
             cursor.execute(
-                """SELECT * FROM ingredient_categories
-                   WHERE is_active = 1 ORDER BY sort_order, id"""
+                """SELECT c.*, COUNT(i.id) AS item_count
+                   FROM ingredient_categories c
+                   LEFT JOIN ingredients i
+                     ON i.category_id = c.id AND i.is_active = 1
+                   WHERE c.is_active = 1
+                   GROUP BY c.id
+                   ORDER BY c.sort_order, c.id"""
             )
             return cursor.fetchall()
         finally:
@@ -84,7 +89,10 @@ class IngredientsRepository:
         try:
             cursor = conn.cursor(dictionary=True)
             cursor.execute(
-                "SELECT * FROM ingredients WHERE is_common = 1 AND is_active = 1 ORDER BY sort_order"
+                "SELECT i.* FROM ingredients i "
+                "JOIN ingredient_categories c ON c.id = i.category_id "
+                "WHERE i.is_common = 1 AND i.is_active = 1 "
+                "ORDER BY c.sort_order, i.sort_order, i.name"
             )
             return cursor.fetchall()
         finally:

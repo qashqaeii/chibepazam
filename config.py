@@ -22,7 +22,7 @@ class Config:
     HISTORY_MAX: int = 50
     FAVORITES_PER_PAGE: int = 5
     RECIPES_PER_PAGE: int = 5
-    INGREDIENTS_PER_PAGE: int = 8
+    INGREDIENTS_PER_PAGE: int = 10
     CALLBACK_DATA_MAX: int = 64
 
     @classmethod

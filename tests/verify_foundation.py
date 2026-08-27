@@ -58,10 +58,10 @@ def test_nav_stack_logic():
 def test_callback_data_length():
     samples = [
         "nav:home",
-        "pantry:ingredient:31:1:2",
+        "page:ing:2:3",
         "recipe:view:123:b",
         "page:rst:20:2",
-        "settings:perm:22:3",
+        "pantry:ingredient:163:10:5",
     ]
     for s in samples:
         assert len(s.encode("utf-8")) <= 64, f"callback too long: {s}"
