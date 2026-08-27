@@ -3,6 +3,20 @@ from database.repositories.pantry import PantryRepository
 from database.repositories.settings import SettingsRepository
 from services.recipe_service import RecipeService
 
+ANIMAL_INGREDIENT_SLUGS = {
+    "chicken",
+    "red-meat",
+    "ground-meat",
+    "fish",
+    "tuna",
+    "shank",
+    "egg",
+    "yogurt",
+    "kashk",
+    "butter",
+    "strained-yogurt",
+}
+
 
 class RecommendationService:
     def __init__(self):
@@ -33,6 +47,12 @@ class RecommendationService:
                 continue
 
             ingredients = self.recipes_repo.get_ingredients(recipe["id"])
+            if settings and settings.get("diet_type") == "vegan":
+                if any(
+                    ri.get("slug") in ANIMAL_INGREDIENT_SLUGS and not ri.get("is_optional")
+                    for ri in ingredients
+                ):
+                    continue
             if any(ri["ingredient_id"] in forbidden for ri in ingredients):
                 continue
 

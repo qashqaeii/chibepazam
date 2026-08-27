@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS recipes (
     slug            VARCHAR(256) NOT NULL UNIQUE,
     emoji           VARCHAR(8)   NOT NULL DEFAULT '🍲',
     description     TEXT NULL,
+    instructions    TEXT NULL,
     prep_time       INT NOT NULL DEFAULT 0,
     cook_time       INT NOT NULL DEFAULT 0,
     servings        INT NOT NULL DEFAULT 4,

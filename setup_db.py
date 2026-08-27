@@ -62,6 +62,21 @@ def run_sql_file(cursor, filepath: str, db_name: str) -> None:
     print(f"  ✓ {os.path.basename(filepath)}")
 
 
+def ensure_recipe_instructions(cursor, db_name: str) -> None:
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM information_schema.columns
+        WHERE table_schema = %s AND table_name = 'recipes' AND column_name = 'instructions'
+        """,
+        (db_name,),
+    )
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("ALTER TABLE recipes ADD COLUMN instructions TEXT NULL AFTER description")
+        print("  ✓ recipes.instructions added")
+    else:
+        print("  ✓ recipes.instructions already exists")
+
+
 def verify_tables(cursor, db_name: str) -> None:
     cursor.execute(
         "SELECT COUNT(*) FROM information_schema.tables "
@@ -72,6 +87,39 @@ def verify_tables(cursor, db_name: str) -> None:
     if count == 0:
         raise RuntimeError(f"No tables found in database `{db_name}`")
     print(f"  ✓ Verified {count} tables in `{db_name}`")
+
+
+def verify_seed(cursor) -> None:
+    checks = {
+        "ingredient_categories": 10,
+        "recipe_categories": 6,
+        "recipes": 20,
+    }
+    for table, minimum in checks.items():
+        cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE is_active = 1")
+        count = cursor.fetchone()[0]
+        if count < minimum:
+            raise RuntimeError(f"{table}: expected at least {minimum} rows, found {count}")
+        print(f"  ✓ {table}: {count}")
+
+    cursor.execute("SELECT COUNT(*) FROM ingredients WHERE is_active = 1")
+    ingredients = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM recipe_ingredients")
+    links = cursor.fetchone()[0]
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM recipes r
+        WHERE r.is_active = 1 AND (
+            r.instructions IS NULL OR r.instructions = ''
+            OR NOT EXISTS (SELECT 1 FROM recipe_ingredients ri WHERE ri.recipe_id = r.id)
+        )
+        """
+    )
+    incomplete = cursor.fetchone()[0]
+    if incomplete:
+        raise RuntimeError(f"{incomplete} recipes are missing instructions or ingredients")
+    print(f"  ✓ ingredients: {ingredients}")
+    print(f"  ✓ recipe_ingredients: {links}")
 
 
 def main():
@@ -93,11 +141,17 @@ def main():
     conn.commit()
 
     cursor.execute(f"USE `{db_name}`")
+    print("Running migrations...")
+    ensure_recipe_instructions(cursor, db_name)
+    conn.commit()
+
     print("Running seed...")
-    run_sql_file(cursor, os.path.join(db_dir, "seed.sql"), db_name)
+    from database.seed_data import apply_seed
+    apply_seed(cursor)
     conn.commit()
 
     verify_tables(cursor, db_name)
+    verify_seed(cursor)
 
     cursor.close()
     conn.close()

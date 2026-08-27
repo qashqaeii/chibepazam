@@ -72,7 +72,10 @@ def register_recipe_handlers(bot: TeleBot) -> None:
                 lines = []
                 for ri in recipe.get("ingredients", []):
                     mark = "✅" if ri["ingredient_id"] in combined else "❌"
-                    amount = f" — {ri['amount']} {ri['unit']}" if ri.get("amount") else ""
+                    qty = " ".join(
+                        part for part in (ri.get("amount") or "", ri.get("unit") or "") if part
+                    ).strip()
+                    amount = f" — {qty}" if qty else ""
                     lines.append(f"{mark}  {ri['emoji']} {esc(ri['name'])}{amount}")
 
                 have = sum(1 for ri in recipe.get("ingredients", []) if ri["ingredient_id"] in combined)
@@ -93,13 +96,14 @@ def register_recipe_handlers(bot: TeleBot) -> None:
                 recipe = recipe_service.get_recipe(recipe_id)
                 if not recipe:
                     return
-                desc = recipe.get("description") or "دستور پخت به زودی اضافه می‌شود."
+                raw = recipe.get("instructions") or recipe.get("description") or "دستور پخت هنوز ثبت نشده است."
+                steps = "\n".join(esc(line) for line in str(raw).splitlines() if line.strip())
                 total_time = recipe.get("prep_time", 0) + recipe.get("cook_time", 0)
                 text = build_screen(
                     emoji="👨‍🍳",
                     title=f"دستور پخت — {recipe['name']}",
                     description=f"⏱  زمان تقریبی: <b>{total_time}</b> دقیقه",
-                    body=esc(desc),
+                    body=steps,
                     footer=ACTION_FOOTER,
                     escape_title=False,
                 )
