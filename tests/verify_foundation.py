@@ -60,7 +60,7 @@ def test_callback_data_length():
         "nav:home",
         "pantry:ingredient:31:1:2",
         "recipe:view:123:b",
-        "page:rec:5",
+        "page:rst:20:2",
         "settings:perm:22:3",
     ]
     for s in samples:

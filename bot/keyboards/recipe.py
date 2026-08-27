@@ -22,6 +22,14 @@ def recipe_detail_keyboard(recipe_id: int, is_favorite: bool) -> types.InlineKey
     return append_nav(kb)
 
 
+def recipe_steps_keyboard(recipe_id: int, page: int = 1, total_pages: int = 1) -> types.InlineKeyboardMarkup:
+    kb = types.InlineKeyboardMarkup(row_width=2)
+    append_pagination(kb, f"rst:{recipe_id}", page, total_pages)
+    kb.add(btn("⬅️  بازگشت به غذا", f"recipe:view:{recipe_id}:b"))
+    kb.add(btn("🏠  خانه", "nav:home"))
+    return kb
+
+
 def recipe_sub_keyboard(recipe_id: int) -> types.InlineKeyboardMarkup:
     kb = types.InlineKeyboardMarkup(row_width=2)
     kb.add(btn("⬅️  بازگشت به غذا", f"recipe:view:{recipe_id}:b"))

@@ -5,7 +5,8 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from database.seed_data import INGREDIENTS, INGREDIENT_CATEGORIES, RECIPE_CATEGORIES, RECIPES
+from database.seed_data import INGREDIENTS, INGREDIENT_CATEGORIES, RECIPE_CATEGORIES
+from database.recipes_catalog import RECIPES
 
 
 def test_seed_integrity():
@@ -28,6 +29,7 @@ def test_seed_integrity():
     for recipe in RECIPES:
         assert recipe["category_id"] in rcat_ids, recipe["slug"]
         assert recipe.get("instructions")
+        assert len(recipe["instructions"]) >= 400, recipe["slug"]
         assert recipe.get("description")
         assert recipe.get("ingredients")
         assert recipe["cook_time"] > 0
@@ -41,6 +43,16 @@ def test_seed_integrity():
             if row["is_required"]:
                 required += 1
         assert required > 0, recipe["slug"]
+
+    from utils.recipe_text import paginate_instructions
+    for recipe in RECIPES:
+        _, _, total = paginate_instructions(recipe["instructions"], 1)
+        assert total >= 1
+        for p in range(1, total + 1):
+            body, cur, tot = paginate_instructions(recipe["instructions"], p)
+            assert cur == p
+            assert tot == total
+            assert len(body) <= 2200, (recipe["slug"], p, len(body))
 
 
 if __name__ == "__main__":

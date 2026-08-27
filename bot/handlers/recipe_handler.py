@@ -1,7 +1,7 @@
 from telebot import TeleBot
 
 from bot.handlers.base import safe_edit, answer_callback, show_error
-from bot.keyboards.recipe import recipe_detail_keyboard, recipe_list_keyboard, recipe_sub_keyboard
+from bot.keyboards.recipe import recipe_detail_keyboard, recipe_list_keyboard, recipe_sub_keyboard, recipe_steps_keyboard
 from services.recipe_service import RecipeService
 from services.user_service import UserService
 from services.nav_service import nav_service
@@ -22,6 +22,28 @@ def show_recipe(bot: TeleBot, chat_id: int, message_id: int, user_id: int, recip
         bot, chat_id, message_id, text,
         recipe_detail_keyboard(recipe_id, recipe.get("is_favorite", False)),
     )
+
+
+def _show_steps(bot: TeleBot, chat_id: int, message_id: int, recipe_id: int, page: int = 1) -> None:
+    from utils.recipe_text import paginate_instructions
+
+    recipe = recipe_service.get_recipe(recipe_id)
+    if not recipe:
+        return
+    raw = recipe.get("instructions") or recipe.get("description") or "دستور پخت هنوز ثبت نشده است."
+    body, page, total_pages = paginate_instructions(raw, page)
+    body = "\n".join(esc(line) for line in body.splitlines())
+    total_time = recipe.get("prep_time", 0) + recipe.get("cook_time", 0)
+    page_note = f"  ·  صفحه {page} از {total_pages}" if total_pages > 1 else ""
+    text = build_screen(
+        emoji="👨‍🍳",
+        title=f"دستور پخت — {recipe['name']}",
+        description=f"⏱  آماده‌سازی + پخت: <b>{total_time}</b> دقیقه{page_note}",
+        body=body,
+        footer=ACTION_FOOTER,
+        escape_title=False,
+    )
+    safe_edit(bot, chat_id, message_id, text, recipe_steps_keyboard(recipe_id, page, total_pages))
 
 
 def register_recipe_handlers(bot: TeleBot) -> None:
@@ -75,7 +97,8 @@ def register_recipe_handlers(bot: TeleBot) -> None:
                     qty = " ".join(
                         part for part in (ri.get("amount") or "", ri.get("unit") or "") if part
                     ).strip()
-                    amount = f" — {qty}" if qty else ""
+                    optional = "  ·  اختیاری" if ri.get("is_optional") else ""
+                    amount = f" — {qty}{optional}" if qty or optional else ""
                     lines.append(f"{mark}  {ri['emoji']} {esc(ri['name'])}{amount}")
 
                 have = sum(1 for ri in recipe.get("ingredients", []) if ri["ingredient_id"] in combined)
@@ -93,21 +116,8 @@ def register_recipe_handlers(bot: TeleBot) -> None:
             elif action == "steps":
                 answer_callback(bot, call)
                 recipe_id = int(parts[2])
-                recipe = recipe_service.get_recipe(recipe_id)
-                if not recipe:
-                    return
-                raw = recipe.get("instructions") or recipe.get("description") or "دستور پخت هنوز ثبت نشده است."
-                steps = "\n".join(esc(line) for line in str(raw).splitlines() if line.strip())
-                total_time = recipe.get("prep_time", 0) + recipe.get("cook_time", 0)
-                text = build_screen(
-                    emoji="👨‍🍳",
-                    title=f"دستور پخت — {recipe['name']}",
-                    description=f"⏱  زمان تقریبی: <b>{total_time}</b> دقیقه",
-                    body=steps,
-                    footer=ACTION_FOOTER,
-                    escape_title=False,
-                )
-                safe_edit(bot, chat_id, msg_id, text, recipe_sub_keyboard(recipe_id))
+                page = int(parts[3]) if len(parts) > 3 else 1
+                _show_steps(bot, chat_id, msg_id, recipe_id, page)
 
             elif action == "missing":
                 answer_callback(bot, call)
@@ -173,3 +183,14 @@ def register_recipe_handlers(bot: TeleBot) -> None:
             setup_logger(__name__).exception("recipe handler error: %s", e)
             answer_callback(bot, call)
             show_error(bot, call, "nav:home")
+
+    @bot.callback_query_handler(func=lambda c: c.data and c.data.startswith("page:rst:"))
+    def handle_steps_page(call):
+        answer_callback(bot, call)
+        user = user_service.get_user(call.from_user.id)
+        if not user:
+            return
+        parts = call.data.split(":")
+        recipe_id = int(parts[2])
+        page = int(parts[3])
+        _show_steps(bot, call.message.chat.id, call.message.message_id, recipe_id, page)

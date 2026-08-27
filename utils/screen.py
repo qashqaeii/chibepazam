@@ -85,7 +85,7 @@ def recipe_detail_screen(recipe: dict, match=None) -> str:
     parts = [
         f"{emoji} <b>{name}</b>",
         "",
-        desc[:120] + ("…" if len(desc) > 120 else ""),
+        desc[:200] + ("…" if len(desc) > 200 else ""),
         "",
         SEPARATOR,
         "\n".join(details),
