@@ -13,7 +13,7 @@ from services.ingredient_service import IngredientService
 from services.recommendation_service import RecommendationService
 from services.user_service import UserService
 from services.nav_service import nav_service
-from utils.screen import build_screen, list_body, SEPARATOR, ACTION_FOOTER
+from utils.screen import build_screen, list_body, ACTION_FOOTER
 from utils.telegram import esc
 
 
