@@ -1,7 +1,14 @@
 from telebot import TeleBot
 
 from bot.handlers.base import safe_edit, answer_callback, show_error
-from bot.keyboards.recipe import recipe_detail_keyboard, recipe_list_keyboard, recipe_sub_keyboard, recipe_steps_keyboard
+from bot.keyboards.recipe import (
+    recipe_detail_keyboard,
+    recipe_list_keyboard,
+    recipe_sub_keyboard,
+    recipe_steps_keyboard,
+    recipe_missing_keyboard,
+    shopping_message_keyboard,
+)
 from services.recipe_service import RecipeService
 from services.user_service import UserService
 from services.nav_service import nav_service
@@ -11,6 +18,26 @@ from utils.telegram import esc
 
 recipe_service = RecipeService()
 user_service = UserService()
+_bot_username: str | None = None
+
+
+def _get_bot_username(bot: TeleBot) -> str:
+    global _bot_username
+    if _bot_username:
+        return _bot_username
+    try:
+        _bot_username = bot.get_me().username or ""
+    except Exception:
+        _bot_username = ""
+    return _bot_username
+
+
+def _missing_share_url(bot: TeleBot, recipe: dict, missing: list[dict]) -> str | None:
+    from utils.shopping import build_shopping_list, build_share_url
+
+    if not missing:
+        return None
+    return build_share_url(build_shopping_list(recipe, missing), _get_bot_username(bot))
 
 
 def show_recipe(bot: TeleBot, chat_id: int, message_id: int, user_id: int, recipe_id: int) -> None:
@@ -125,21 +152,56 @@ def register_recipe_handlers(bot: TeleBot) -> None:
                 recipe = recipe_service.get_recipe_detail(recipe_id, user_id)
                 if not recipe or not recipe.get("match"):
                     return
+                from utils.shopping import ingredient_qty
+
                 missing = recipe["match"].missing_ingredients
                 if not missing:
                     body = "🎉  همه مواد لازم رو داری!\nمی‌تونی همین الان شروع به پخت کنی."
                 else:
-                    lines = [f"❌  {m['emoji']} {esc(m['name'])}" for m in missing]
+                    lines = []
+                    for m in missing:
+                        qty = ingredient_qty(m)
+                        amount = f" — {qty}" if qty else ""
+                        lines.append(f"❌  {m['emoji']} {esc(m['name'])}{amount}")
                     body = list_body(lines)
                 text = build_screen(
                     emoji="🛒",
                     title="چیزایی که ندارم",
                     description=f"برای «{esc(recipe['name'])}» این مواد کم داری:",
                     body=body,
-                    footer=ACTION_FOOTER,
+                    footer="👇 لیست خرید را برای خریدار بفرست" if missing else ACTION_FOOTER,
                     escape_title=False,
                 )
-                safe_edit(bot, chat_id, msg_id, text, recipe_sub_keyboard(recipe_id))
+                safe_edit(
+                    bot, chat_id, msg_id, text,
+                    recipe_missing_keyboard(recipe_id, bool(missing), _missing_share_url(bot, recipe, missing)),
+                )
+
+            elif action == "buylist":
+                recipe_id = int(parts[2])
+                recipe = recipe_service.get_recipe_detail(recipe_id, user_id)
+                if not recipe or not recipe.get("match"):
+                    answer_callback(bot, call)
+                    return
+                missing = recipe["match"].missing_ingredients
+                if not missing:
+                    answer_callback(bot, call, "همه مواد رو داری 🎉")
+                    return
+                from utils.shopping import build_shopping_list
+
+                plain = build_shopping_list(recipe, missing)
+                share_url = _missing_share_url(bot, recipe, missing)
+                answer_callback(bot, call, "لیست خرید آماده شد ✅")
+                try:
+                    bot.send_message(
+                        chat_id,
+                        plain,
+                        reply_markup=shopping_message_keyboard(recipe_id, share_url),
+                        disable_web_page_preview=True,
+                    )
+                except Exception:
+                    from utils.logger import setup_logger
+                    setup_logger(__name__).exception("shopping list send failed")
 
             elif action == "similar":
                 answer_callback(bot, call)

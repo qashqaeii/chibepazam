@@ -30,6 +30,29 @@ def recipe_steps_keyboard(recipe_id: int, page: int = 1, total_pages: int = 1) -
     return kb
 
 
+def recipe_missing_keyboard(
+    recipe_id: int,
+    has_missing: bool,
+    share_url: str | None = None,
+) -> types.InlineKeyboardMarkup:
+    kb = types.InlineKeyboardMarkup(row_width=1)
+    if has_missing:
+        kb.add(btn("📤  ارسال لیست خرید", f"recipe:buylist:{recipe_id}"))
+        if share_url:
+            kb.add(types.InlineKeyboardButton("📲  ارسال به خریدار", url=share_url))
+    kb.add(btn("⬅️  بازگشت به غذا", f"recipe:view:{recipe_id}:b"))
+    kb.add(btn("🏠  خانه", "nav:home"))
+    return kb
+
+
+def shopping_message_keyboard(recipe_id: int, share_url: str | None = None) -> types.InlineKeyboardMarkup:
+    kb = types.InlineKeyboardMarkup(row_width=1)
+    if share_url:
+        kb.add(types.InlineKeyboardButton("📲  ارسال به خریدار", url=share_url))
+    kb.add(btn("⬅️  بازگشت به غذا", f"recipe:view:{recipe_id}:b"))
+    return kb
+
+
 def recipe_sub_keyboard(recipe_id: int) -> types.InlineKeyboardMarkup:
     kb = types.InlineKeyboardMarkup(row_width=2)
     kb.add(btn("⬅️  بازگشت به غذا", f"recipe:view:{recipe_id}:b"))

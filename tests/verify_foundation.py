@@ -55,12 +55,34 @@ def test_nav_stack_logic():
     _current.pop(uid, None)
 
 
+def test_shopping_list_text():
+    from utils.shopping import build_shopping_list, build_share_url, ingredient_qty
+
+    recipe = {"name": "باقالی‌پلو با ماهیچه", "servings": 4}
+    missing = [
+        {"name": "ماهیچه", "emoji": "🥩", "amount": "۴", "unit": "عدد"},
+        {"name": "برنج", "emoji": "🍚", "amount": "۳", "unit": "پیمانه"},
+    ]
+    text = build_shopping_list(recipe, missing)
+    assert "باقالی‌پلو با ماهیچه" in text
+    assert "ماهیچه" in text
+    assert "۴ عدد" in text
+    assert "۳ پیمانه" in text
+    assert "۴ نفر" in text or "۴" in text
+    assert ingredient_qty(missing[0]) == "۴ عدد"
+    url = build_share_url(text, "chibepazam")
+    if url:
+        assert url.startswith("https://t.me/share/url?")
+        assert len(url) <= 2000
+
+
 def test_callback_data_length():
     samples = [
         "nav:home",
         "page:ing:2:3",
         "recipe:view:123:b",
         "page:rst:20:2",
+        "recipe:buylist:20",
         "pantry:ingredient:163:10:5",
     ]
     for s in samples:
@@ -71,5 +93,6 @@ if __name__ == "__main__":
     test_match_score_bounds()
     test_optional_low_weight()
     test_nav_stack_logic()
+    test_shopping_list_text()
     test_callback_data_length()
     print("All foundation checks passed.")
