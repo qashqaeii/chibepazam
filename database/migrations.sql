@@ -66,6 +66,28 @@ CREATE TABLE IF NOT EXISTS user_screen_state (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS bot_promotions (
+    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    slot            VARCHAR(32) NOT NULL UNIQUE,
+    title           VARCHAR(128) NULL,
+    body_text       TEXT NOT NULL,
+    button_label    VARCHAR(64) NOT NULL,
+    link_url        VARCHAR(512) NOT NULL,
+    is_active       TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order      INT NOT NULL DEFAULT 0,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+INSERT IGNORE INTO bot_promotions (slot, title, body_text, button_label, link_url, is_active) VALUES
+(
+    'main_menu',
+    'HyperTunnel VPN',
+    'اینترنت سریع و پایدار — اتصال امن با VPN اختصاصی',
+    '🛡  HyperTunnel VPN',
+    'https://t.me/HyperTunnelbot',
+    1
+);
+
 -- Seed real ingredient substitutes (existing IDs only)
 INSERT IGNORE INTO ingredient_substitutes (ingredient_id, substitute_ingredient_id, note) VALUES
     (37, 95, 'در پخت برخی غذاها'),

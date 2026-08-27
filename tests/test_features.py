@@ -102,6 +102,14 @@ def test_share_text():
     assert "Chibepazamrobot" in text
 
 
+def test_promotion_url_normalize():
+    from services.promotion_service import PromotionService
+
+    svc = PromotionService()
+    assert svc.normalize_url("@HyperTunnelbot") == "https://t.me/HyperTunnelbot"
+    assert svc.is_valid_url("https://t.me/HyperTunnelbot")
+
+
 if __name__ == "__main__":
     test_servings_scale()
     test_merge_amounts()
@@ -114,4 +122,5 @@ if __name__ == "__main__":
     test_dislike_exclusion()
     test_navigation_persist()
     test_share_text()
+    test_promotion_url_normalize()
     print("All feature tests passed.")

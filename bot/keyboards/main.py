@@ -4,15 +4,15 @@ from bot.keyboards.builder import btn, append_nav
 
 
 def main_menu_keyboard() -> types.InlineKeyboardMarkup:
+    from services.promotion_service import PromotionService
+
     kb = types.InlineKeyboardMarkup(row_width=2)
-    # ── پیشنهاد غذا
     kb.add(btn("🧺  با مواد خونه", "menu:pantry"))
     kb.add(btn("🤔  نمی‌دونم چی می‌خوام", "menu:decide"))
     kb.add(
         btn("🎲  پیشنهاد شانسی", "menu:random"),
         btn("🔍  جستجوی غذا", "menu:search"),
     )
-    # ── لیست‌ها
     kb.add(
         btn("🛒  لیست خرید", "shop:cart"),
         btn("❤️  علاقه‌مندی‌ها", "menu:favorites"),
@@ -22,12 +22,19 @@ def main_menu_keyboard() -> types.InlineKeyboardMarkup:
         btn("👤  حساب من", "menu:profile"),
     )
     kb.add(btn("⚙️  تنظیمات", "menu:settings"))
+
+    promo_btn = PromotionService().button_for_keyboard()
+    if promo_btn:
+        label, url = promo_btn
+        kb.add(types.InlineKeyboardButton(label, url=url))
+
     return kb
 
 
 def main_menu_text(greeting: str | None = None) -> str:
-    from utils.screen import build_screen, SEPARATOR
-    from utils.menu_style import section, join_sections, status_chip
+    from utils.screen import build_screen
+    from utils.menu_style import section, join_sections
+    from services.promotion_service import PromotionService
 
     intro = build_screen(
         emoji="🍲",
@@ -38,7 +45,7 @@ def main_menu_text(greeting: str | None = None) -> str:
         ],
         footer=None,
     )
-    guide = join_sections(
+    sections = [
         section("چطور شروع کنم؟", [
             "مواد موجود را از «با مواد خونه» انتخاب کن",
             "فیلتر بزن و «چی می‌تونم بپزم» را بزن",
@@ -50,7 +57,11 @@ def main_menu_text(greeting: str | None = None) -> str:
             "🛒 لیست خرید ترکیبی چند غذا",
             "⭐ امتیاز، پخت و اشتراک غذا",
         ]),
-    )
+    ]
+    ad = PromotionService().format_ad_block()
+    if ad:
+        sections.append(ad)
+    guide = join_sections(*sections)
     footer = "👇 از منوی زیر گزینه مورد نظر را انتخاب کن"
     base = f"{intro}\n{guide}\n\n{footer}"
     if greeting:

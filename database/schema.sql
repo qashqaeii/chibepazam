@@ -277,3 +277,15 @@ CREATE TABLE IF NOT EXISTS user_screen_state (
     updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS bot_promotions (
+    id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    slot            VARCHAR(32) NOT NULL UNIQUE,
+    title           VARCHAR(128) NULL,
+    body_text       TEXT NOT NULL,
+    button_label    VARCHAR(64) NOT NULL,
+    link_url        VARCHAR(512) NOT NULL,
+    is_active       TINYINT(1) NOT NULL DEFAULT 1,
+    sort_order      INT NOT NULL DEFAULT 0,
+    updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
