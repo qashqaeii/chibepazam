@@ -11,6 +11,7 @@ from database.repositories.settings import SettingsRepository
 from services.ingredient_service import IngredientService
 from services.nav_service import nav_service
 from utils.screen import build_screen
+from utils.menu_style import section, status_chip
 
 
 settings_repo = SettingsRepository()
@@ -30,14 +31,15 @@ def show_settings(bot: TeleBot, chat_id: int, message_id: int, user_id: int) -> 
         emoji="⚙️",
         title="تنظیمات",
         description=[
-            "تنظیمات شخصی‌سازی ربات «غذا چی بپزم؟»",
-            "تغییرات اینجا روی پیشنهادها اثر می‌ذاره.",
+            "تنظیمات شخصی‌سازی پیشنهادها و مقادیر غذا",
+            "تغییرات اینجا روی همه پیشنهادها اثر می‌گذارد.",
         ],
         details=[
-            f"👨‍👩‍👧  تعداد نفرات: <b>{settings.get('servings', 4)}</b>",
+            status_chip("تعداد نفرات", settings.get("servings", 4), "👨‍👩‍👧"),
             f"🌱  رژیم: {DIET_LABELS.get(settings.get('diet_type', 'none'), '—')}",
             f"🔔  اعلان‌ها: {notif}",
         ],
+        footer="👇 بخش مورد نظر را انتخاب کن",
     )
     safe_edit(
         bot, chat_id, message_id, text,
@@ -56,14 +58,14 @@ def show_permanent(bot: TeleBot, chat_id: int, message_id: int, user_id: int, pa
         emoji="🏠",
         title="مواد همیشگی من",
         description=[
-            "موادی که همیشه توی خونه داری رو انتخاب کن.",
-            "اینا خودکار در پیشنهادها لحاظ می‌شن.",
+            "ادویه، روغن و مواد پایه‌ای که همیشه داری.",
+            "این مواد خودکار در محاسبه تطابق لحاظ می‌شوند.",
         ],
         details=[
-            f"✅  انتخاب‌شده: <b>{len(selected)}</b> مورد",
-            f"📋  مواد رایج: <b>{len(ingredients)}</b> مورد",
+            status_chip("انتخاب‌شده", len(selected), "✅"),
+            status_chip("مواد رایج", len(ingredients), "📋"),
         ],
-        footer="👇 مواد همیشگی رو انتخاب کن",
+        footer="👇 روی ماده بزن تا انتخاب/حذف شود",
     )
     safe_edit(
         bot, chat_id, message_id, text,
@@ -78,9 +80,11 @@ def show_servings(bot: TeleBot, chat_id: int, message_id: int, user_id: int) -> 
         emoji="👨‍👩‍👧",
         title="تعداد نفرات",
         description=[
-            "غذا معمولاً برای چند نفر می‌پزی؟",
-            f"فعلی: <b>{current}</b> نفر",
+            "مقادیر مواد و لیست خرید بر اساس این عدد تنظیم می‌شود.",
+            f"انتخاب فعلی: <b>{current}</b> نفر",
         ],
+        details=["💡  بعد از تغییر، صفحه غذاها با مقادیر جدید نمایش داده می‌شوند"],
+        footer="👇 تعداد نفرات را انتخاب کن",
     )
     safe_edit(bot, chat_id, message_id, text, servings_keyboard(current))
 
@@ -92,9 +96,15 @@ def show_diet(bot: TeleBot, chat_id: int, message_id: int, user_id: int) -> None
         emoji="🌱",
         title="رژیم غذایی",
         description=[
-            "نوع رژیمت رو انتخاب کن.",
-            f"فعلی: {DIET_LABELS.get(current, '—')}",
+            "غذاهای نامناسب با رژیمت در پیشنهادها حذف می‌شوند.",
+            f"رژیم فعلی: <b>{DIET_LABELS.get(current, '—')}</b>",
         ],
+        details=[
+            "🍽  بدون محدودیت — همه غذاها",
+            "🌱  گیاهخواری — بدون گوشت",
+            "🥬  وگان — بدون محصولات حیوانی",
+        ],
+        footer="👇 نوع رژیم را انتخاب کن",
     )
     safe_edit(bot, chat_id, message_id, text, diet_keyboard(current))
 

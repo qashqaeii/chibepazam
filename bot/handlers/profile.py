@@ -3,6 +3,7 @@ from telebot import TeleBot
 from bot.handlers.base import safe_edit
 from bot.keyboards.main import profile_keyboard
 from utils.screen import build_screen
+from utils.menu_style import section, join_sections
 from utils.telegram import esc
 
 
@@ -28,17 +29,21 @@ def show_profile(bot: TeleBot, chat_id: int, message_id: int, user: dict) -> Non
         title="حساب من",
         description=[
             f"سلام <b>{name}</b>! 👋",
-            "خلاصه فعالیت تو در ربات:",
+            "خلاصه فعالیت و تنظیمات تو در ربات:",
         ],
-        details=[
-            f"🔗  یوزرنیم: {username}",
-            f"🧺  مواد انتخاب‌شده: <b>{pantry_count}</b>",
-            f"🏠  مواد همیشگی: <b>{permanent}</b>",
-            f"❤️  علاقه‌مندی‌ها: <b>{fav_count}</b>",
-            f"🍽  پخته‌شده: <b>{cooked['total_cooks']}</b> بار ({cooked['distinct_recipes']} غذا)",
-            f"📅  عضو از: {joined}",
-        ],
-        footer="👇 برای بازگشت از دکمه پایین استفاده کن",
+        body=join_sections(
+            section("آمار فعالیت", [
+                f"🧺  مواد انتخاب‌شده: <b>{pantry_count}</b>",
+                f"🏠  مواد همیشگی: <b>{permanent}</b>",
+                f"❤️  علاقه‌مندی‌ها: <b>{fav_count}</b>",
+                f"🍽  پخته‌شده: <b>{cooked['total_cooks']}</b> بار ({cooked['distinct_recipes']} غذا)",
+            ]),
+            section("اطلاعات حساب", [
+                f"🔗  یوزرنیم: {username}",
+                f"📅  عضو از: {joined}",
+            ]),
+        ),
+        footer="👇 میانبرهای سریع یا بازگشت",
     )
     safe_edit(bot, chat_id, message_id, text, profile_keyboard())
 

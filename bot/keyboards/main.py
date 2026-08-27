@@ -1,17 +1,18 @@
 from telebot import types
 
 from bot.keyboards.builder import btn, append_nav
-from bot.keyboards.navigation import nav_row
 
 
 def main_menu_keyboard() -> types.InlineKeyboardMarkup:
     kb = types.InlineKeyboardMarkup(row_width=2)
-    kb.add(btn("🧺  با مواد خونه چی بپزم؟", "menu:pantry"))
+    # ── پیشنهاد غذا
+    kb.add(btn("🧺  با مواد خونه", "menu:pantry"))
     kb.add(btn("🤔  نمی‌دونم چی می‌خوام", "menu:decide"))
     kb.add(
         btn("🎲  پیشنهاد شانسی", "menu:random"),
         btn("🔍  جستجوی غذا", "menu:search"),
     )
+    # ── لیست‌ها
     kb.add(
         btn("🛒  لیست خرید", "shop:cart"),
         btn("❤️  علاقه‌مندی‌ها", "menu:favorites"),
@@ -26,30 +27,45 @@ def main_menu_keyboard() -> types.InlineKeyboardMarkup:
 
 def main_menu_text(greeting: str | None = None) -> str:
     from utils.screen import build_screen, SEPARATOR
+    from utils.menu_style import section, join_sections, status_chip
 
-    base = build_screen(
+    intro = build_screen(
         emoji="🍲",
         title="غذا چی بپزم؟",
         description=[
-            "امروز چی درست کنیم؟ 😋",
-            "مواد خونه‌ات رو انتخاب کن تا بهترین غذا رو پیشنهاد بدم.",
+            "دستیار آشپزی هوشمند برای انتخاب غذای روزانه 🍽",
+            "مواد خونه‌ات را بگو — بهترین پیشنهاد را می‌دهم.",
         ],
-        details=[
-            "🧺  انتخاب مواد موجود",
-            "🔥  پیشنهاد هوشمند",
-            "🎲  یا یک غذای شانسی!",
-        ],
-        footer="👇 یکی از گزینه‌ها رو انتخاب کن",
+        footer=None,
     )
+    guide = join_sections(
+        section("چطور شروع کنم؟", [
+            "مواد موجود را از «با مواد خونه» انتخاب کن",
+            "فیلتر بزن و «چی می‌تونم بپزم» را بزن",
+            "یا از «نمی‌دونم چی می‌خوام» راهنمایی بگیر",
+        ]),
+        section("امکانات", [
+            "🎲 پیشنهاد شانسی با فیلتر",
+            "🔍 جستجو در نام غذا و مواد",
+            "🛒 لیست خرید ترکیبی چند غذا",
+            "⭐ امتیاز، پخت و اشتراک غذا",
+        ]),
+    )
+    footer = "👇 از منوی زیر گزینه مورد نظر را انتخاب کن"
+    base = f"{intro}\n{guide}\n\n{footer}"
     if greeting:
         return f"{greeting}\n\n{base}"
     return base
 
 
-# Backward compat
 MAIN_MENU_TEXT = main_menu_text()
 
 
 def profile_keyboard() -> types.InlineKeyboardMarkup:
     kb = types.InlineKeyboardMarkup(row_width=2)
+    kb.add(
+        btn("🧺  مواد خونه", "menu:pantry"),
+        btn("❤️  علاقه‌مندی‌ها", "menu:favorites"),
+    )
+    kb.add(btn("⚙️  تنظیمات", "menu:settings"))
     return append_nav(kb)

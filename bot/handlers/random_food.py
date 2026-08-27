@@ -7,6 +7,7 @@ from services.user_service import UserService
 from services.nav_service import nav_service
 from database.repositories.events import EventsRepository
 from utils.screen import build_screen, ACTION_FOOTER
+from utils.menu_style import section, join_sections
 from utils.telegram import esc, difficulty_label, cost_label
 
 
@@ -31,17 +32,26 @@ FILTER_LABELS = {
 
 
 def show_random_menu(bot: TeleBot, chat_id: int, message_id: int) -> None:
+    guide = join_sections(
+        section("فیلتر سریع", [
+            "⚡ زیر ۱ ساعت — غذاهای سریع",
+            "💰 اقتصادی — هزینه پایین",
+            "🌱 گیاهی — بدون گوشت",
+        ]),
+        section("بر اساس پایه", [
+            "🍗 مرغ  ·  🥩 گوشت  ·  🍚 برنجی",
+            "🥖 نونی  ·  🥘 سنتی",
+        ]),
+    )
     text = build_screen(
         emoji="🎲",
-        title="امروز چی بپزم؟",
+        title="پیشنهاد شانسی",
         description=[
-            "نمیدونی چی بپزی؟ بذار انتخاب کنم!",
-            "یک فیلتر انتخاب کن یا کاملاً شانسی برو.",
+            "نمی‌دانی چه بپزی؟ یک فیلتر انتخاب کن یا کاملاً شانسی برو.",
+            "غذاهای disliked برای تو پیشنهاد نمی‌شوند.",
         ],
-        details=[
-            "⚡  سریع  ·  💰  اقتصادی  ·  🌱  گیاهی",
-            "🍗  مرغ  ·  🥩  گوشت  ·  🍚  برنجی",
-        ],
+        body=guide,
+        footer="👇 فیلتر را انتخاب کن",
     )
     safe_edit(bot, chat_id, message_id, text, random_menu_keyboard())
 

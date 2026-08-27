@@ -5,7 +5,7 @@ from bot.keyboards.builder import btn, append_nav
 from services.shopping_service import ShoppingService
 from services.user_service import UserService
 from services.nav_service import nav_service
-from utils.screen import build_screen
+from utils.screen import build_screen, ACTION_FOOTER
 from utils.shopping import build_share_url
 
 
@@ -19,17 +19,35 @@ def show_cart(bot: TeleBot, chat_id: int, message_id: int, user_id: int) -> None
         text = build_screen(
             emoji="🛒",
             title="لیست خرید ترکیبی",
-            description="هنوز غذایی به لیست اضافه نکردی.",
-            details=["از صفحه غذا «افزودن به لیست خرید» را بزن."],
+            description=[
+                "چند غذا را انتخاب کن تا مواد مشترک را یکجا ببینی.",
+                "از صفحه هر غذا «افزودن به لیست خرید» را بزن.",
+            ],
+            details=[
+                "💡  مواد تکراری خودکار جمع می‌شوند",
+                "📤  می‌توانی لیست را برای خریدار بفرستی",
+            ],
+            footer="👇 بعد از افزودن غذا، دوباره اینجا بیا",
         )
         safe_edit(bot, chat_id, message_id, text, append_nav(types.InlineKeyboardMarkup()))
         return
-    text, _ = shopping_service.build_merged_list(user_id)
+
+    plain, items = shopping_service.build_merged_list(user_id)
+    text = build_screen(
+        emoji="🛒",
+        title="لیست خرید ترکیبی",
+        description=[
+            f"<b>{count}</b> غذا در لیست — <b>{len(items)}</b> ماده برای خرید",
+            "مواد مشابه با هم جمع شده‌اند.",
+        ],
+        body=plain.split("────────────", 1)[-1].strip() if "────────────" in plain else plain,
+        footer=ACTION_FOOTER,
+    )
     kb = types.InlineKeyboardMarkup(row_width=1)
     kb.add(btn("📤  ارسال لیست", "shop:send"))
     kb.add(btn("🗑  پاک کردن لیست", "shop:clear:ask"))
     append_nav(kb)
-    safe_edit(bot, chat_id, message_id, f"🛒 <b>لیست خرید</b>\n\n{text}", kb)
+    safe_edit(bot, chat_id, message_id, text, kb)
 
 
 def register_shopping_handlers(bot: TeleBot) -> None:
@@ -58,7 +76,7 @@ def register_shopping_handlers(bot: TeleBot) -> None:
             answer_callback(bot, call, "لیست آماده شد ✅")
             kb = types.InlineKeyboardMarkup()
             if url:
-                kb.add(types.InlineKeyboardButton("📲  ارسال", url=url))
+                kb.add(types.InlineKeyboardButton("📲  ارسال به خریدار", url=url))
             bot.send_message(chat_id, text, reply_markup=kb, disable_web_page_preview=True)
         elif action == "clear":
             if len(call.data.split(":")) > 2 and call.data.split(":")[2] == "yes":
@@ -67,7 +85,15 @@ def register_shopping_handlers(bot: TeleBot) -> None:
                 show_cart(bot, chat_id, msg_id, uid)
             else:
                 answer_callback(bot, call)
-                text = build_screen(emoji="🗑", title="پاک کردن لیست", description="لیست خرید پاک شود؟")
+                text = build_screen(
+                    emoji="🗑",
+                    title="پاک کردن لیست خرید",
+                    description=[
+                        "همه غذاها از لیست خرید حذف شوند؟",
+                        "این عمل قابل بازگشت نیست.",
+                    ],
+                    footer="👇 تأیید یا انصراف",
+                )
                 kb = types.InlineKeyboardMarkup()
-                kb.add(btn("✅ بله", "shop:clear:yes"), btn("❌ خیر", "shop:cart"))
+                kb.row(btn("✅  بله، پاک کن", "shop:clear:yes"), btn("❌  انصراف", "shop:cart"))
                 safe_edit(bot, chat_id, msg_id, text, kb)

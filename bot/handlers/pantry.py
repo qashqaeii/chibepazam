@@ -7,6 +7,8 @@ from bot.keyboards.pantry import (
     pantry_selected_keyboard,
     pantry_clear_confirm_keyboard,
     recommend_keyboard,
+    recommend_filters_keyboard,
+    FILTER_LABELS,
 )
 from bot.keyboards.recipe import recommend_list_keyboard
 from services.ingredient_service import IngredientService
@@ -14,6 +16,7 @@ from services.recommendation_service import RecommendationService
 from services.user_service import UserService
 from services.nav_service import nav_service
 from utils.screen import build_screen, list_body, ACTION_FOOTER
+from utils.menu_style import section, join_sections, status_chip
 from utils.telegram import esc
 
 
@@ -32,15 +35,16 @@ def show_pantry_main(bot: TeleBot, chat_id: int, message_id: int, user_id: int) 
         emoji="🧺",
         title="مواد داخل خونه",
         description=[
-            "موادی که الان در دسترس داری رو از دسته‌ها انتخاب کن.",
-            "ادویه و روغن همیشگی را از تنظیمات مشخص کن.",
+            "مواد موجود را از دسته‌ها انتخاب کن تا پیشنهاد دقیق‌تری بگیری.",
+            "نمک، روغن و ادویه‌های همیشگی را از تنظیمات مشخص کن.",
         ],
         details=[
-            f"✅  انتخاب‌شده: <b>{count}</b> مورد",
-            f"🏠  مواد همیشگی: <b>{permanent}</b> مورد",
-            f"📂  دسته‌بندی: <b>{len(categories)}</b> دسته",
-            f"🥕  مواد قابل انتخاب: <b>{sum(c.get('item_count') or 0 for c in categories)}</b> مورد",
+            status_chip("انتخاب‌شده", count, "✅"),
+            status_chip("مواد همیشگی", permanent, "🏠"),
+            status_chip("دسته‌بندی", len(categories), "📂"),
+            status_chip("مواد قابل انتخاب", sum(c.get("item_count") or 0 for c in categories), "🥕"),
         ],
+        footer="👇 دسته مورد نظر را باز کن",
     )
     safe_edit(bot, chat_id, message_id, text, pantry_main_keyboard(categories, count))
 
@@ -59,14 +63,14 @@ def show_pantry_category(
         emoji=category["emoji"],
         title=category["name"],
         description=[
-            "روی هر ماده بزن تا انتخاب/لغو بشه.",
-            "✅ = داری  ·  ⬜ = نداری",
+            "روی هر ماده بزن تا انتخاب یا لغو شود.",
+            "علامت ✅ یعنی داری  ·  ⬜ یعنی نداری",
         ],
         details=[
-            f"📋  از این دسته: <b>{count}</b> مورد انتخاب شده",
-            f"🥕  کل مواد دسته: <b>{len(ingredients)}</b> مورد",
+            status_chip("انتخاب از این دسته", count, "📋"),
+            status_chip("کل مواد دسته", len(ingredients), "🥕"),
         ],
-        footer="👇 مواد رو انتخاب کن، بعد «تأیید» بزن",
+        footer="👇 مواد را انتخاب کن، سپس «تأیید و بازگشت»",
         escape_title=False,
     )
     safe_edit(
@@ -83,8 +87,9 @@ def show_pantry_selected(bot: TeleBot, chat_id: int, message_id: int, user_id: i
             title="انتخاب‌های من",
             description=[
                 "هنوز ماده‌ای انتخاب نکردی.",
-                "از منوی قبل مواد خونه‌ات رو اضافه کن.",
+                "از دسته‌ها مواد موجود در آشپزخانه را اضافه کن.",
             ],
+            details=["💡  بعد از انتخاب، «فیلتر پیشنهاد» یا «چی می‌تونم بپزم» را بزن"],
             footer="👇 برای افزودن مواد برگرد",
         )
     else:
@@ -92,26 +97,19 @@ def show_pantry_selected(bot: TeleBot, chat_id: int, message_id: int, user_id: i
         text = build_screen(
             emoji="📋",
             title="مواد فعلی من",
-            description=f"شما <b>{len(items)}</b> ماده انتخاب کرده‌اید:",
+            description=f"بر اساس انتخاب تو، <b>{len(items)}</b> ماده فعال است:",
             body=list_body(lines),
             footer=ACTION_FOOTER,
         )
     safe_edit(bot, chat_id, message_id, text, pantry_selected_keyboard())
 
 
-FILTER_LABELS = {
-    "time_short": "⚡ زیر ۱ ساعت",
-    "time_medium": "⏳ تا ۲ ساعت",
-    "cost_low": "💚 اقتصادی",
-    "cost_high": "💎 گران‌تر",
-    "meal_polo": "🍚 پلو",
-    "meal_stew": "🥘 خورش",
-    "meal_kebab": "🍖 کباب",
-    "meal_ash": "🥣 آش",
-    "veg_only": "🌱 گیاهی",
-    "vegan_only": "🥬 وگان",
-    "available_now": "✅ همین الان",
-    "one_missing": "۱ ماده کم",
+FILTER_SECTIONS = {
+    "time": ("⏱  زمان پخت", ("time_short", "time_medium")),
+    "cost": ("💰  بودجه", ("cost_low", "cost_high")),
+    "meal": ("🍽  نوع غذا", ("meal_polo", "meal_stew", "meal_kebab", "meal_ash")),
+    "diet": ("🌱  رژیم", ("veg_only", "vegan_only")),
+    "extra": ("✨  شرایط ویژه", ("available_now", "one_missing")),
 }
 
 
@@ -135,38 +133,24 @@ def _merge_filters(keys: set[str]) -> dict:
 
 
 def show_recommend_filters(bot: TeleBot, chat_id: int, message_id: int, user_id: int) -> None:
-    from telebot import types
-    from bot.keyboards.builder import btn, append_nav
-
     active = _active_filter_keys(user_id)
-    lines = [f"{'✅' if k in active else '⬜'} {FILTER_LABELS[k]}" for k in FILTER_LABELS]
+    blocks = []
+    for _, (title, keys) in FILTER_SECTIONS.items():
+        lines = [f"{'✅' if k in active else '⬜'} {FILTER_LABELS[k]}" for k in keys]
+        blocks.append(section(title, lines))
+    body = join_sections(*blocks)
+    active_count = len(active)
     text = build_screen(
         emoji="🎛",
-        title="فیلتر پیشنهاد",
-        description="فیلترها را انتخاب کن، بعد «نمایش نتایج» را بزن.",
-        body=list_body(lines),
-        footer="👇 فیلتر را روشن/خاموش کن",
+        title="فیلتر پیشنهاد غذا",
+        description=[
+            "فیلترها را ترکیب کن تا نتیجه دقیق‌تر شود.",
+            f"فیلتر فعال: <b>{active_count}</b> مورد",
+        ],
+        body=body,
+        footer="👇 روی دکمه بزن تا روشن/خاموش شود، سپس «نمایش نتایج»",
     )
-    kb = types.InlineKeyboardMarkup(row_width=2)
-    for key in ("time_short", "time_medium", "cost_low", "cost_high"):
-        mark = "✅" if key in active else "⬜"
-        kb.add(btn(f"{mark} {FILTER_LABELS[key]}", f"pantry:flt:{key}"))
-    for key in ("meal_polo", "meal_stew", "meal_kebab", "meal_ash"):
-        mark = "✅" if key in active else "⬜"
-        kb.row(
-            btn(f"{mark} {FILTER_LABELS[key]}", f"pantry:flt:{key}"),
-        )
-    kb.row(
-        btn(f"{'✅' if 'veg_only' in active else '⬜'} گیاهی", "pantry:flt:veg_only"),
-        btn(f"{'✅' if 'vegan_only' in active else '⬜'} وگان", "pantry:flt:vegan_only"),
-    )
-    kb.row(
-        btn(f"{'✅' if 'available_now' in active else '⬜'} همین الان", "pantry:flt:available_now"),
-        btn(f"{'✅' if 'one_missing' in active else '⬜'} ۱ ماده کم", "pantry:flt:one_missing"),
-    )
-    kb.add(btn("🔥  نمایش نتایج", "pantry:recgo"))
-    kb.add(btn("🗑  پاک کردن فیلترها", "pantry:fltclr"))
-    safe_edit(bot, chat_id, message_id, text, append_nav(kb, back="pantry:main"))
+    safe_edit(bot, chat_id, message_id, text, recommend_filters_keyboard(active))
 
 
 def show_recommendations(bot: TeleBot, chat_id: int, message_id: int, user_id: int, page: int = 1) -> None:
@@ -176,6 +160,7 @@ def show_recommendations(bot: TeleBot, chat_id: int, message_id: int, user_id: i
         user_id, page, filters=filters or None,
     )
     count = ingredient_service.pantry_count(user_id)
+    filter_note = f"🎛  فیلتر فعال: <b>{len(active)}</b>" if active else None
 
     if not items:
         if count == 0:
@@ -183,34 +168,46 @@ def show_recommendations(bot: TeleBot, chat_id: int, message_id: int, user_id: i
                 emoji="🍽",
                 title="پیشنهادهای مناسب",
                 description=[
-                    "اول مواد خونه‌ات رو انتخاب کن.",
-                    "بعد بهترین غذاها رو بهت پیشنهاد می‌دم.",
+                    "اول مواد موجود در خانه را انتخاب کن.",
+                    "سپس فیلتر بزن یا مستقیم «چی می‌تونم بپزم» را بزن.",
                 ],
+                details=[filter_note] if filter_note else None,
+                footer="👇 به «مواد داخل خونه» برگرد",
             )
         else:
             text = build_screen(
                 emoji="🍽",
                 title="پیشنهادهای مناسب",
                 description=[
-                    "متأسفانه غذای مناسبی پیدا نشد.",
-                    "مواد بیشتری اضافه کن یا ترکیب رو تغییر بده.",
+                    "با این ترکیب مواد و فیلترها، غذایی پیدا نشد.",
+                    "فیلترها را سبک‌تر کن یا مواد بیشتری اضافه کن.",
                 ],
-                details=[f"📋  مواد انتخاب‌شده: <b>{count}</b> مورد"],
+                details=[
+                    status_chip("مواد انتخاب‌شده", count, "📋"),
+                    filter_note,
+                ],
+                footer="👇 فیلتر یا مواد را تغییر بده",
             )
         safe_edit(bot, chat_id, message_id, text, pantry_main_keyboard(
             ingredient_service.get_categories(), count
         ))
         return
 
+    details = [status_chip("مواد فعال", count, "🧺")]
+    if filter_note:
+        details.append(filter_note)
+    if total_pages > 1:
+        details.append(f"📄  صفحه <b>{current_page}</b> از <b>{total_pages}</b>")
+
     text = build_screen(
         emoji="🔥",
-        title="پیشنهادهای مناسب برای شما",
+        title="بهترین پیشنهادها برای تو",
         description=[
-            f"بر اساس <b>{count}</b> ماده‌ای که انتخاب کردی،",
-            "این غذاها بیشترین تطابق رو دارن:",
+            "این غذاها بیشترین تطابق را با مواد تو دارند.",
+            "درصد کنار هر غذا میزان تطابق را نشان می‌دهد.",
         ],
-        details=[f"📄  صفحه <b>{current_page}</b> از <b>{total_pages}</b>"] if total_pages > 1 else None,
-        footer="👇 روی غذا بزن برای جزئیات",
+        details=details,
+        footer="👇 روی غذا بزن برای جزئیات و دستور پخت",
     )
     kb = recommend_list_keyboard(items)
     for row in recommend_keyboard(current_page, total_pages).keyboard:

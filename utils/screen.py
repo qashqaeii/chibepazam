@@ -34,9 +34,9 @@ def build_screen(
 
     if description:
         if isinstance(description, list):
-            parts.extend(description[:2])
+            parts.extend(description[:4])
         else:
-            for line in description.split("\n")[:2]:
+            for line in description.split("\n")[:4]:
                 if line.strip():
                     parts.append(line.strip())
         parts.append("")

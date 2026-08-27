@@ -23,8 +23,9 @@ def show_favorites(bot: TeleBot, chat_id: int, message_id: int, user_id: int, pa
             title="غذاهای موردعلاقه",
             description=[
                 "هنوز غذایی ذخیره نکردی.",
-                "در صفحه هر غذا روی ❤️ بزن تا اینجا بیاد.",
+                "در صفحه هر غذا روی «ذخیره» ❤️ بزن تا اینجا بیاید.",
             ],
+            details=["💡  از پیشنهادها یا جستجو غذای مورد علاقه‌ات را پیدا کن"],
         )
     else:
         lines = [f"{r.get('emoji', '🍲')}  {esc(r['name'])}" for r in page_items]
@@ -34,7 +35,10 @@ def show_favorites(bot: TeleBot, chat_id: int, message_id: int, user_id: int, pa
         text = build_screen(
             emoji="❤️",
             title="غذاهای موردعلاقه",
-            description="غذاهایی که ذخیره کردی:",
+            description=[
+                "غذاهایی که برای بعد ذخیره کردی:",
+                f"مجموع <b>{len(all_favs)}</b> غذا در لیست علاقه‌مندی‌ها",
+            ],
             details=details,
             body=list_body(lines),
             footer="👇 روی غذا بزن برای مشاهده",

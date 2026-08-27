@@ -8,20 +8,26 @@ def settings_keyboard(notifications: bool) -> types.InlineKeyboardMarkup:
     notif_text = "🔔  اعلان: روشن" if notifications else "🔕  اعلان: خاموش"
     kb = types.InlineKeyboardMarkup(row_width=2)
     kb.add(btn("🏠  مواد همیشگی", "settings:permanent"))
-    kb.add(
+    kb.row(
         btn("👨‍👩‍👧  تعداد نفرات", "settings:servings"),
         btn("🌱  رژیم غذایی", "settings:diet"),
     )
     kb.add(btn("🚫  مواد غیرمجاز", "settings:forbidden"))
     kb.add(btn(notif_text, "settings:notifications"))
-    return append_nav(kb)
+    return append_nav(kb, back="nav:home")
 
 
 def servings_keyboard(current: int) -> types.InlineKeyboardMarkup:
     kb = types.InlineKeyboardMarkup(row_width=3)
+    row = []
     for n in [1, 2, 3, 4, 5, 6]:
         mark = "✅ " if n == current else ""
-        kb.add(btn(f"{mark}{n} نفر", f"settings:servings:{n}"))
+        row.append(btn(f"{mark}{n} نفر", f"settings:servings:{n}"))
+        if len(row) == 3:
+            kb.row(*row)
+            row = []
+    if row:
+        kb.row(*row)
     return append_nav(kb, back="menu:settings")
 
 
