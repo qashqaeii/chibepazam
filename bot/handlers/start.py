@@ -2,7 +2,7 @@ from telebot import TeleBot, types
 
 from bot.handlers.base import show_main_menu
 from bot.handlers.navigation import handle_home
-from bot.keyboards.main import MAIN_MENU_TEXT, main_menu_keyboard
+from bot.keyboards.main import main_menu_text, main_menu_keyboard
 from services.user_service import UserService
 from services.nav_service import nav_service
 from database.repositories.events import EventsRepository
@@ -26,7 +26,7 @@ def register_start_handlers(bot: TeleBot) -> None:
         nav_service.set_current(user["id"], "home", {})
 
         name = esc(message.from_user.first_name or "دوست")
-        text = f"سلام {name}! 👋\n\n" + MAIN_MENU_TEXT
+        text = main_menu_text(greeting=f"سلام {name}! 👋")
         bot.send_message(
             message.chat.id,
             text,

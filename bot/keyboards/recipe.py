@@ -1,38 +1,39 @@
 from telebot import types
 
-from bot.keyboards.navigation import nav_row, pagination_row
+from bot.keyboards.builder import btn, append_nav, append_pagination
+from bot.keyboards.navigation import nav_row
 
 
 def recipe_detail_keyboard(recipe_id: int, is_favorite: bool) -> types.InlineKeyboardMarkup:
-    fav_text = "💔 حذف از علاقه‌مندی" if is_favorite else "❤️ ذخیره"
+    fav_text = "💔  حذف علاقه‌مندی" if is_favorite else "❤️  ذخیره"
     kb = types.InlineKeyboardMarkup(row_width=2)
     kb.add(
-        types.InlineKeyboardButton("🥕 مواد لازم", callback_data=f"recipe:ingredients:{recipe_id}"),
-        types.InlineKeyboardButton("👨‍🍳 دستور پخت", callback_data=f"recipe:steps:{recipe_id}"),
+        btn("🥕  مواد لازم", f"recipe:ingredients:{recipe_id}"),
+        btn("👨‍🍳  دستور پخت", f"recipe:steps:{recipe_id}"),
     )
     kb.add(
-        types.InlineKeyboardButton("🛒 چیزایی که ندارم", callback_data=f"recipe:missing:{recipe_id}"),
-        types.InlineKeyboardButton(fav_text, callback_data=f"recipe:favorite:{recipe_id}"),
+        btn("🛒  ندارم", f"recipe:missing:{recipe_id}"),
+        btn(fav_text, f"recipe:favorite:{recipe_id}"),
     )
     kb.add(
-        types.InlineKeyboardButton("🔄 غذای مشابه", callback_data=f"recipe:similar:{recipe_id}"),
-        types.InlineKeyboardButton("📤 اشتراک", callback_data=f"recipe:share:{recipe_id}"),
+        btn("🔄  مشابه", f"recipe:similar:{recipe_id}"),
+        btn("📤  اشتراک", f"recipe:share:{recipe_id}"),
     )
-    kb.row(*nav_row())
+    return append_nav(kb)
+
+
+def recipe_sub_keyboard(recipe_id: int) -> types.InlineKeyboardMarkup:
+    kb = types.InlineKeyboardMarkup(row_width=2)
+    kb.add(btn("⬅️  بازگشت به غذا", f"recipe:view:{recipe_id}:b"))
+    kb.add(btn("🏠  خانه", "nav:home"))
     return kb
 
 
 def recipe_list_keyboard(recipes: list[dict], prefix: str = "recipe:view") -> types.InlineKeyboardMarkup:
     kb = types.InlineKeyboardMarkup(row_width=1)
     for r in recipes:
-        kb.add(
-            types.InlineKeyboardButton(
-                f"{r.get('emoji', '🍲')} {r['name']}",
-                callback_data=f"{prefix}:{r['id']}",
-            )
-        )
-    kb.row(*nav_row())
-    return kb
+        kb.add(btn(f"{r.get('emoji', '🍲')}  {r['name']}", f"{prefix}:{r['id']}"))
+    return append_nav(kb)
 
 
 def recommend_list_keyboard(items: list[dict]) -> types.InlineKeyboardMarkup:
@@ -44,9 +45,9 @@ def recommend_list_keyboard(items: list[dict]) -> types.InlineKeyboardMarkup:
         score = item["score"]
         emoji = match_emoji(score)
         kb.add(
-            types.InlineKeyboardButton(
-                f"{emoji} {recipe['name']} — {score:.0f}٪",
-                callback_data=f"recipe:view:{recipe['id']}",
+            btn(
+                f"{emoji}  {recipe['name']}  —  {score:.0f}٪",
+                f"recipe:view:{recipe['id']}",
             )
         )
     return kb
@@ -55,14 +56,6 @@ def recommend_list_keyboard(items: list[dict]) -> types.InlineKeyboardMarkup:
 def favorites_keyboard(recipes: list[dict], page: int, total_pages: int) -> types.InlineKeyboardMarkup:
     kb = types.InlineKeyboardMarkup(row_width=1)
     for r in recipes:
-        kb.add(
-            types.InlineKeyboardButton(
-                f"{r.get('emoji', '🍲')} {r['name']}",
-                callback_data=f"recipe:view:{r['id']}",
-            )
-        )
-    pag = pagination_row("fav", page, total_pages)
-    if pag:
-        kb.row(*pag)
-    kb.row(*nav_row())
-    return kb
+        kb.add(btn(f"{r.get('emoji', '🍲')}  {r['name']}", f"recipe:view:{r['id']}"))
+    append_pagination(kb, "fav", page, total_pages)
+    return append_nav(kb)

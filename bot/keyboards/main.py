@@ -1,36 +1,53 @@
 from telebot import types
 
+from bot.keyboards.builder import btn, append_nav
 from bot.keyboards.navigation import nav_row
 
 
 def main_menu_keyboard() -> types.InlineKeyboardMarkup:
     kb = types.InlineKeyboardMarkup(row_width=2)
-    kb.add(types.InlineKeyboardButton("🧺 با مواد خونه چی بپزم؟", callback_data="menu:pantry"))
+    kb.add(btn("🧺  با مواد خونه چی بپزم؟", "menu:pantry"))
     kb.add(
-        types.InlineKeyboardButton("🎲 پیشنهاد شانسی", callback_data="menu:random"),
-        types.InlineKeyboardButton("🔍 جستجوی غذا", callback_data="menu:search"),
+        btn("🎲  پیشنهاد شانسی", "menu:random"),
+        btn("🔍  جستجوی غذا", "menu:search"),
     )
     kb.add(
-        types.InlineKeyboardButton("❤️ علاقه‌مندی‌ها", callback_data="menu:favorites"),
-        types.InlineKeyboardButton("🕘 تاریخچه", callback_data="menu:history"),
+        btn("❤️  علاقه‌مندی‌ها", "menu:favorites"),
+        btn("🕘  تاریخچه", "menu:history"),
     )
     kb.add(
-        types.InlineKeyboardButton("👤 حساب من", callback_data="menu:profile"),
-        types.InlineKeyboardButton("⚙️ تنظیمات", callback_data="menu:settings"),
+        btn("👤  حساب من", "menu:profile"),
+        btn("⚙️  تنظیمات", "menu:settings"),
     )
     return kb
 
 
-MAIN_MENU_TEXT = (
-    "🍲 <b>غذا چی بپزم؟</b>\n\n"
-    "امروز چی درست کنیم؟ 😋\n\n"
-    "مواد غذایی که توی خونه داری رو انتخاب کن\n"
-    "تا بهترین غذاها رو بهت پیشنهاد بدم.\n\n"
-    "👇 یکی از گزینه‌ها رو انتخاب کن"
-)
+def main_menu_text(greeting: str | None = None) -> str:
+    from utils.screen import build_screen, SEPARATOR
+
+    base = build_screen(
+        emoji="🍲",
+        title="غذا چی بپزم؟",
+        description=[
+            "امروز چی درست کنیم؟ 😋",
+            "مواد خونه‌ات رو انتخاب کن تا بهترین غذا رو پیشنهاد بدم.",
+        ],
+        details=[
+            "🧺  انتخاب مواد موجود",
+            "🔥  پیشنهاد هوشمند",
+            "🎲  یا یک غذای شانسی!",
+        ],
+        footer="👇 یکی از گزینه‌ها رو انتخاب کن",
+    )
+    if greeting:
+        return f"{greeting}\n\n{base}"
+    return base
+
+
+# Backward compat
+MAIN_MENU_TEXT = main_menu_text()
 
 
 def profile_keyboard() -> types.InlineKeyboardMarkup:
-    kb = types.InlineKeyboardMarkup(row_width=1)
-    kb.add(*nav_row())
-    return kb
+    kb = types.InlineKeyboardMarkup(row_width=2)
+    return append_nav(kb)

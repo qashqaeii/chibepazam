@@ -2,7 +2,7 @@
 
 from telebot import TeleBot, types
 
-from bot.keyboards.main import MAIN_MENU_TEXT, main_menu_keyboard
+from bot.keyboards.main import main_menu_text, main_menu_keyboard
 from bot.keyboards.navigation import error_keyboard
 from utils.logger import setup_logger
 from utils.telegram import esc
@@ -39,18 +39,27 @@ def safe_edit(
         return False
 
 
+def show_main_menu(bot: TeleBot, chat_id: int, message_id: int) -> None:
+    safe_edit(bot, chat_id, message_id, main_menu_text(), main_menu_keyboard())
+
+
 def show_error(bot: TeleBot, call: types.CallbackQuery, retry_callback: str = "nav:home") -> None:
+    from utils.screen import build_screen
     safe_edit(
         bot,
         call.message.chat.id,
         call.message.message_id,
-        "⚠️ یه مشکلی پیش اومد.\n\nلطفاً دوباره امتحان کن 👇",
+        build_screen(
+            emoji="⚠️",
+            title="مشکلی پیش اومد",
+            description=[
+                "متأسفانه یه خطای موقت رخ داد.",
+                "لطفاً دوباره امتحان کن.",
+            ],
+            footer="👇 یکی از گزینه‌ها رو بزن",
+        ),
         error_keyboard(retry_callback),
     )
-
-
-def show_main_menu(bot: TeleBot, chat_id: int, message_id: int) -> None:
-    safe_edit(bot, chat_id, message_id, MAIN_MENU_TEXT, main_menu_keyboard())
 
 
 def answer_callback(bot: TeleBot, call: types.CallbackQuery, text: str | None = None) -> None:

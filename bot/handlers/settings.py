@@ -10,7 +10,7 @@ from bot.keyboards.settings_kb import (
 from database.repositories.settings import SettingsRepository
 from services.ingredient_service import IngredientService
 from services.nav_service import nav_service
-from utils.telegram import esc
+from utils.screen import build_screen
 
 
 settings_repo = SettingsRepository()
@@ -25,17 +25,22 @@ DIET_LABELS = {
 
 def show_settings(bot: TeleBot, chat_id: int, message_id: int, user_id: int) -> None:
     settings = settings_repo.get(user_id) or {"servings": 4, "notifications": 1, "diet_type": "none"}
-    text = (
-        "⚙️ <b>تنظیمات</b>\n\n"
-        "تنظیمات «غذا چی بپزم؟»\n\n"
-        f"👨‍👩‍👧 تعداد نفرات: {settings.get('servings', 4)}\n"
-        f"🌱 رژیم: {DIET_LABELS.get(settings.get('diet_type', 'none'), '—')}"
+    notif = "🔔  روشن" if settings.get("notifications", 1) else "🔕  خاموش"
+    text = build_screen(
+        emoji="⚙️",
+        title="تنظیمات",
+        description=[
+            "تنظیمات شخصی‌سازی ربات «غذا چی بپزم؟»",
+            "تغییرات اینجا روی پیشنهادها اثر می‌ذاره.",
+        ],
+        details=[
+            f"👨‍👩‍👧  تعداد نفرات: <b>{settings.get('servings', 4)}</b>",
+            f"🌱  رژیم: {DIET_LABELS.get(settings.get('diet_type', 'none'), '—')}",
+            f"🔔  اعلان‌ها: {notif}",
+        ],
     )
     safe_edit(
-        bot,
-        chat_id,
-        message_id,
-        text,
+        bot, chat_id, message_id, text,
         settings_keyboard(bool(settings.get("notifications", 1))),
     )
 
@@ -47,16 +52,21 @@ def show_permanent(bot: TeleBot, chat_id: int, message_id: int, user_id: int, pa
     from config import Config
 
     _, current_page, total_pages = paginate(ingredients, page, Config.INGREDIENTS_PER_PAGE)
-    text = (
-        "🏠 <b>مواد همیشگی من</b>\n\n"
-        "موادی که همیشه توی خونه داری رو انتخاب کن.\n"
-        "این‌ها خودکار در پیشنهادها لحاظ می‌شن 👇"
+    text = build_screen(
+        emoji="🏠",
+        title="مواد همیشگی من",
+        description=[
+            "موادی که همیشه توی خونه داری رو انتخاب کن.",
+            "اینا خودکار در پیشنهادها لحاظ می‌شن.",
+        ],
+        details=[
+            f"✅  انتخاب‌شده: <b>{len(selected)}</b> مورد",
+            f"📋  مواد رایج: <b>{len(ingredients)}</b> مورد",
+        ],
+        footer="👇 مواد همیشگی رو انتخاب کن",
     )
     safe_edit(
-        bot,
-        chat_id,
-        message_id,
-        text,
+        bot, chat_id, message_id, text,
         permanent_keyboard(ingredients, selected, page, total_pages),
     )
 
@@ -64,14 +74,28 @@ def show_permanent(bot: TeleBot, chat_id: int, message_id: int, user_id: int, pa
 def show_servings(bot: TeleBot, chat_id: int, message_id: int, user_id: int) -> None:
     settings = settings_repo.get(user_id)
     current = settings.get("servings", 4) if settings else 4
-    text = "👨‍👩‍👧 <b>تعداد نفرات</b>\n\nچند نفر غذا می‌خوری؟"
+    text = build_screen(
+        emoji="👨‍👩‍👧",
+        title="تعداد نفرات",
+        description=[
+            "غذا معمولاً برای چند نفر می‌پزی؟",
+            f"فعلی: <b>{current}</b> نفر",
+        ],
+    )
     safe_edit(bot, chat_id, message_id, text, servings_keyboard(current))
 
 
 def show_diet(bot: TeleBot, chat_id: int, message_id: int, user_id: int) -> None:
     settings = settings_repo.get(user_id)
     current = settings.get("diet_type", "none") if settings else "none"
-    text = "🌱 <b>رژیم غذایی</b>\n\nنوع رژیمت رو انتخاب کن:"
+    text = build_screen(
+        emoji="🌱",
+        title="رژیم غذایی",
+        description=[
+            "نوع رژیمت رو انتخاب کن.",
+            f"فعلی: {DIET_LABELS.get(current, '—')}",
+        ],
+    )
     safe_edit(bot, chat_id, message_id, text, diet_keyboard(current))
 
 
@@ -124,11 +148,16 @@ def register_settings_handlers(bot: TeleBot) -> None:
             show_settings(bot, chat_id, msg_id, user_id)
 
         elif parts[1] == "forbidden":
-            text = "🚫 <b>مواد غیرمجاز</b>\n\nاین قابلیت به زودی فعال می‌شود."
-            from bot.keyboards.navigation import nav_row
+            text = build_screen(
+                emoji="🚫",
+                title="مواد غیرمجاز",
+                description="این قابلیت به زودی فعال می‌شود.",
+                details=["💡  می‌تونی موادی که نمی‌خوری رو حذف کنی"],
+            )
+            from bot.keyboards.builder import append_nav
             from telebot import types
-            kb = types.InlineKeyboardMarkup()
-            kb.row(*nav_row())
+            kb = types.InlineKeyboardMarkup(row_width=2)
+            append_nav(kb)
             safe_edit(bot, chat_id, msg_id, text, kb)
 
         else:

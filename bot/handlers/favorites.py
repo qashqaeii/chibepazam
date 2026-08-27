@@ -1,4 +1,4 @@
-from telebot import TeleBot
+from telebot import TeleBot, types
 
 from bot.handlers.base import safe_edit
 from bot.keyboards.recipe import favorites_keyboard
@@ -6,6 +6,7 @@ from database.repositories.favorites import FavoritesRepository
 from config import Config
 from utils.pagination import paginate
 from utils.telegram import esc
+from utils.screen import build_screen, list_body
 from services.nav_service import nav_service
 
 
@@ -17,16 +18,27 @@ def show_favorites(bot: TeleBot, chat_id: int, message_id: int, user_id: int, pa
     page_items, current_page, total_pages = paginate(all_favs, page, Config.FAVORITES_PER_PAGE)
 
     if not page_items:
-        text = (
-            "❤️ <b>غذاهای موردعلاقه</b>\n\n"
-            "هنوز غذایی ذخیره نکردی.\n"
-            "روی ❤️ ذخیره در صفحه غذا بزن 👇"
+        text = build_screen(
+            emoji="❤️",
+            title="غذاهای موردعلاقه",
+            description=[
+                "هنوز غذایی ذخیره نکردی.",
+                "در صفحه هر غذا روی ❤️ بزن تا اینجا بیاد.",
+            ],
         )
     else:
-        lines = "\n".join(
-            f"{r.get('emoji', '🍲')} {esc(r['name'])}" for r in page_items
+        lines = [f"{r.get('emoji', '🍲')}  {esc(r['name'])}" for r in page_items]
+        details = [f"📋  مجموع: <b>{len(all_favs)}</b> غذا"]
+        if total_pages > 1:
+            details.append(f"📄  صفحه <b>{current_page}</b> از <b>{total_pages}</b>")
+        text = build_screen(
+            emoji="❤️",
+            title="غذاهای موردعلاقه",
+            description="غذاهایی که ذخیره کردی:",
+            details=details,
+            body=list_body(lines),
+            footer="👇 روی غذا بزن برای مشاهده",
         )
-        text = f"❤️ <b>غذاهای موردعلاقه</b>\n\n{lines}"
 
     safe_edit(bot, chat_id, message_id, text, favorites_keyboard(page_items, current_page, total_pages))
 

@@ -19,6 +19,9 @@ events_repo = EventsRepository()
 favorites_repo = FavoritesRepository()
 
 
+from utils.screen import build_screen, list_body, ACTION_FOOTER
+
+
 def show_admin_dashboard(bot: TeleBot, chat_id: int, message_id: int) -> None:
     users_count = users_repo.count_all()
     active_today = users_repo.count_active_today()
@@ -27,14 +30,19 @@ def show_admin_dashboard(bot: TeleBot, chat_id: int, message_id: int) -> None:
     searches_today = events_repo.count_searches_today()
     random_today = events_repo.count_today("random")
 
-    text = (
-        "👑 <b>پنل مدیریت غذا چی بپزم؟</b>\n\n"
-        f"📊 کاربران: {users_count:,}\n"
-        f"🟢 فعال امروز: {active_today:,}\n"
-        f"🍲 غذاها: {recipes_count:,}\n"
-        f"🥕 مواد اولیه: {ingredients_count:,}\n"
-        f"🔎 جستجوی امروز: {searches_today:,}\n"
-        f"🎲 پیشنهادهای امروز: {random_today:,}"
+    text = build_screen(
+        emoji="👑",
+        title="پنل مدیریت",
+        description="خلاصه وضعیت ربات «غذا چی بپزم؟»",
+        details=[
+            f"📊  کاربران: <b>{users_count:,}</b>",
+            f"🟢  فعال امروز: <b>{active_today:,}</b>",
+            f"🍲  غذاها: <b>{recipes_count:,}</b>",
+            f"🥕  مواد اولیه: <b>{ingredients_count:,}</b>",
+            f"🔎  جستجوی امروز: <b>{searches_today:,}</b>",
+            f"🎲  پیشنهاد شانسی امروز: <b>{random_today:,}</b>",
+        ],
+        footer=ACTION_FOOTER,
     )
     safe_edit(bot, chat_id, message_id, text, admin_dashboard_keyboard())
 

@@ -13,6 +13,7 @@ from services.ingredient_service import IngredientService
 from services.recommendation_service import RecommendationService
 from services.user_service import UserService
 from services.nav_service import nav_service
+from utils.screen import build_screen, list_body, SEPARATOR, ACTION_FOOTER
 from utils.telegram import esc
 
 
@@ -24,10 +25,19 @@ user_service = UserService()
 def show_pantry_main(bot: TeleBot, chat_id: int, message_id: int, user_id: int) -> None:
     categories = ingredient_service.get_categories()
     count = ingredient_service.pantry_count(user_id)
-    text = (
-        "🧺 <b>مواد داخل خونه</b>\n\n"
-        "موادی که الان در دسترس داری رو انتخاب کن 👇\n\n"
-        f"انتخاب‌شده: <b>{count}</b> مورد"
+    permanent = len(ingredient_service.get_permanent_ids(user_id))
+    text = build_screen(
+        emoji="🧺",
+        title="مواد داخل خونه",
+        description=[
+            "موادی که الان در دسترس داری رو انتخاب کن.",
+            "با انتخاب دقیق‌تر، پیشنهادهای بهتری می‌گیری.",
+        ],
+        details=[
+            f"✅  انتخاب‌شده: <b>{count}</b> مورد",
+            f"🏠  مواد همیشگی: <b>{permanent}</b> مورد",
+            f"📂  دسته‌بندی: <b>{len(categories)}</b> دسته",
+        ],
     )
     safe_edit(bot, chat_id, message_id, text, pantry_main_keyboard(categories, count))
 
@@ -42,16 +52,22 @@ def show_pantry_category(
     selected = ingredient_service.get_selected_ids(user_id)
     count = len(selected & {i["id"] for i in ingredients})
 
-    text = (
-        f"{category['emoji']} <b>{esc(category['name'])}</b>\n\n"
-        "موادی که داری رو انتخاب کن:\n\n"
-        f"انتخاب شده: <b>{count}</b> مورد"
+    text = build_screen(
+        emoji=category["emoji"],
+        title=category["name"],
+        description=[
+            "روی هر ماده بزن تا انتخاب/لغو بشه.",
+            "✅ = داری  ·  ⬜ = نداری",
+        ],
+        details=[
+            f"📋  از این دسته: <b>{count}</b> مورد انتخاب شده",
+            f"🥕  کل مواد دسته: <b>{len(ingredients)}</b> مورد",
+        ],
+        footer="👇 مواد رو انتخاب کن، بعد «تأیید» بزن",
+        escape_title=False,
     )
     safe_edit(
-        bot,
-        chat_id,
-        message_id,
-        text,
+        bot, chat_id, message_id, text,
         pantry_category_keyboard(category, ingredients, selected, page),
     )
 
@@ -59,48 +75,65 @@ def show_pantry_category(
 def show_pantry_selected(bot: TeleBot, chat_id: int, message_id: int, user_id: int) -> None:
     items = ingredient_service.get_selected_ingredients(user_id)
     if not items:
-        text = (
-            "🧺 <b>مواد فعلی من</b>\n\n"
-            "هنوز ماده‌ای انتخاب نکردی.\n"
-            "از منوی قبل مواد خونه‌ات رو اضافه کن 👇"
+        text = build_screen(
+            emoji="📋",
+            title="انتخاب‌های من",
+            description=[
+                "هنوز ماده‌ای انتخاب نکردی.",
+                "از منوی قبل مواد خونه‌ات رو اضافه کن.",
+            ],
+            footer="👇 برای افزودن مواد برگرد",
         )
     else:
-        lines = "\n".join(f"{i['emoji']} {esc(i['name'])}" for i in items)
-        text = (
-            f"🧺 <b>مواد فعلی من</b>\n\n"
-            f"شما <b>{len(items)}</b> ماده انتخاب کرده‌اید:\n\n"
-            f"{lines}"
+        lines = [f"{i['emoji']}  {esc(i['name'])}" for i in items]
+        text = build_screen(
+            emoji="📋",
+            title="مواد فعلی من",
+            description=f"شما <b>{len(items)}</b> ماده انتخاب کرده‌اید:",
+            body=list_body(lines),
+            footer=ACTION_FOOTER,
         )
     safe_edit(bot, chat_id, message_id, text, pantry_selected_keyboard())
 
 
 def show_recommendations(bot: TeleBot, chat_id: int, message_id: int, user_id: int, page: int = 1) -> None:
     items, current_page, total_pages = recommendation_service.get_recommendations(user_id, page)
+    count = ingredient_service.pantry_count(user_id)
 
     if not items:
-        count = ingredient_service.pantry_count(user_id)
         if count == 0:
-            text = (
-                "🍽 <b>پیشنهادهای مناسب</b>\n\n"
-                "اول مواد خونه‌ات رو انتخاب کن\n"
-                "تا بهترین غذاها رو پیشنهاد بدم 👇"
+            text = build_screen(
+                emoji="🍽",
+                title="پیشنهادهای مناسب",
+                description=[
+                    "اول مواد خونه‌ات رو انتخاب کن.",
+                    "بعد بهترین غذاها رو بهت پیشنهاد می‌دم.",
+                ],
             )
         else:
-            text = (
-                "🍽 <b>پیشنهادهای مناسب</b>\n\n"
-                "متأسفانه غذای مناسبی پیدا نشد.\n"
-                "مواد بیشتری اضافه کن یا تغییر بده 👇"
+            text = build_screen(
+                emoji="🍽",
+                title="پیشنهادهای مناسب",
+                description=[
+                    "متأسفانه غذای مناسبی پیدا نشد.",
+                    "مواد بیشتری اضافه کن یا ترکیب رو تغییر بده.",
+                ],
+                details=[f"📋  مواد انتخاب‌شده: <b>{count}</b> مورد"],
             )
         safe_edit(bot, chat_id, message_id, text, pantry_main_keyboard(
             ingredient_service.get_categories(), count
         ))
         return
 
-    count = ingredient_service.pantry_count(user_id)
-    text = (
-        "🍽 <b>پیشنهادهای مناسب برای شما</b>\n\n"
-        f"بر اساس <b>{count}</b> ماده‌ای که انتخاب کردی،\n"
-        "این غذاها بیشترین تطابق رو دارند 👇"
+    text = build_screen(
+        emoji="🔥",
+        title="پیشنهادهای مناسب برای شما",
+        description=[
+            f"بر اساس <b>{count}</b> ماده‌ای که انتخاب کردی،",
+            "این غذاها بیشترین تطابق رو دارن:",
+        ],
+        details=[f"📄  صفحه <b>{current_page}</b> از <b>{total_pages}</b>"] if total_pages > 1 else None,
+        footer="👇 روی غذا بزن برای جزئیات",
     )
     kb = recommend_list_keyboard(items)
     for row in recommend_keyboard(current_page, total_pages).keyboard:
@@ -143,7 +176,6 @@ def register_pantry_handlers(bot: TeleBot) -> None:
                 show_pantry_category(bot, chat_id, msg_id, user_id, category_id, page)
 
             elif action == "done":
-                category_id = int(parts[2])
                 show_pantry_main(bot, chat_id, msg_id, user_id)
 
             elif action == "selected":
@@ -155,7 +187,12 @@ def register_pantry_handlers(bot: TeleBot) -> None:
                     ingredient_service.clear_pantry(user_id)
                     show_pantry_main(bot, chat_id, msg_id, user_id)
                 else:
-                    text = "همه مواد انتخاب‌شده پاک شوند؟"
+                    text = build_screen(
+                        emoji="🗑",
+                        title="پاک کردن مواد",
+                        description="همه مواد انتخاب‌شده پاک شوند؟",
+                        footer="👇 تأیید یا انصراف",
+                    )
                     safe_edit(bot, chat_id, msg_id, text, pantry_clear_confirm_keyboard())
 
             elif action == "recommend":

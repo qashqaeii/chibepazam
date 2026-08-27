@@ -3,11 +3,12 @@ from telebot import TeleBot, types
 from bot.handlers.base import safe_edit
 from bot.keyboards.random_kb import search_prompt_keyboard
 from bot.keyboards.recipe import recipe_list_keyboard
-from bot.keyboards.navigation import nav_row
+from bot.keyboards.builder import append_nav
 from services.search_service import SearchService
 from services.user_service import UserService
 from services.nav_service import nav_service
 from states.user_state import UserState, state_manager
+from utils.screen import build_screen
 from utils.telegram import esc
 
 
@@ -20,13 +21,18 @@ def show_search_prompt(bot: TeleBot, chat_id: int, message_id: int, telegram_id:
         telegram_id, UserState.WAITING_SEARCH,
         chat_id=chat_id, message_id=message_id,
     )
-    text = (
-        "🔍 <b>جستجوی غذا</b>\n\n"
-        "اسم غذا یا یکی از موادش رو برام بنویس.\n\n"
-        "مثلاً:\n"
-        "قورمه سبزی\n"
-        "مرغ\n"
-        "بادمجان"
+    text = build_screen(
+        emoji="🔍",
+        title="جستجوی غذا",
+        description=[
+            "اسم غذا یا یکی از موادش رو بنویس.",
+            "مثلاً: قورمه سبزی، مرغ، بادمجان",
+        ],
+        details=[
+            "💡  حداقل ۲ حرف بنویس",
+            "📝  پیام بعدیت جستجو محسوب می‌شه",
+        ],
+        footer="👇 الان بنویس و بفرست",
     )
     safe_edit(bot, chat_id, message_id, text, search_prompt_keyboard())
 
@@ -34,14 +40,26 @@ def show_search_prompt(bot: TeleBot, chat_id: int, message_id: int, telegram_id:
 def show_search_results(bot: TeleBot, chat_id: int, message_id: int, user_id: int, query: str) -> None:
     results = search_service.search(user_id, query)
     if not results:
-        text = f"🔍 نتیجه‌ای برای «{esc(query)}» پیدا نشد."
-        kb = types.InlineKeyboardMarkup()
-        kb.row(*nav_row())
+        text = build_screen(
+            emoji="🔍",
+            title="نتیجه جستجو",
+            description=f"نتیجه‌ای برای «<b>{esc(query)}</b>» پیدا نشد.",
+            details=["💡  اسم غذا یا ماده رو دقیق‌تر بنویس"],
+        )
+        kb = types.InlineKeyboardMarkup(row_width=2)
+        append_nav(kb)
         safe_edit(bot, chat_id, message_id, text, kb)
         nav_service.replace(user_id, "search_results", {"query": query})
         return
 
-    text = f"🔍 نتایج جستجو برای «{esc(query)}»:"
+    text = build_screen(
+        emoji="🔍",
+        title="نتایج جستجو",
+        description=f"برای «<b>{esc(query)}</b>» این نتایج پیدا شد:",
+        details=[f"📋  <b>{len(results)}</b> غذا"],
+        footer="👇 روی غذا بزن برای جزئیات",
+        escape_title=False,
+    )
     safe_edit(bot, chat_id, message_id, text, recipe_list_keyboard(results))
     nav_service.replace(user_id, "search_results", {"query": query})
 
@@ -71,9 +89,21 @@ def register_search_handlers(bot: TeleBot) -> None:
             nav_service.navigate(user["id"], "search_results", {"query": query})
             results = search_service.search(user["id"], query)
             if not results:
-                bot.send_message(message.chat.id, f"🔍 نتیجه‌ای برای «{esc(query)}» پیدا نشد.", parse_mode="HTML")
+                bot.send_message(
+                    message.chat.id,
+                    build_screen(
+                        emoji="🔍", title="نتیجه جستجو",
+                        description=f"نتیجه‌ای برای «<b>{esc(query)}</b>» پیدا نشد.",
+                    ),
+                    parse_mode="HTML",
+                )
                 return
-            text = f"🔍 نتایج جستجو برای «{esc(query)}»:"
+            text = build_screen(
+                emoji="🔍", title="نتایج جستجو",
+                description=f"برای «<b>{esc(query)}</b>»:",
+                details=[f"📋  <b>{len(results)}</b> غذا"],
+                escape_title=False,
+            )
             bot.send_message(
                 message.chat.id, text,
                 reply_markup=recipe_list_keyboard(results),

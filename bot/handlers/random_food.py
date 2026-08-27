@@ -6,6 +6,7 @@ from services.random_service import RandomService
 from services.user_service import UserService
 from services.nav_service import nav_service
 from database.repositories.events import EventsRepository
+from utils.screen import build_screen, ACTION_FOOTER
 from utils.telegram import esc, difficulty_label, cost_label
 
 
@@ -16,11 +17,31 @@ events_repo = EventsRepository()
 _last_random: dict[int, dict] = {}
 _last_filter: dict[int, str] = {}
 
+FILTER_LABELS = {
+    "full": "🎲  کاملاً شانسی",
+    "fast": "⚡  سریع",
+    "cheap": "💰  اقتصادی",
+    "chicken": "🍗  با مرغ",
+    "meat": "🥩  گوشتی",
+    "vegetarian": "🌱  بدون گوشت",
+    "rice": "🍚  برنجی",
+    "bread": "🥖  نونی",
+    "traditional": "🥘  سنتی",
+}
+
 
 def show_random_menu(bot: TeleBot, chat_id: int, message_id: int) -> None:
-    text = (
-        "🎲 <b>امروز چی بپزم؟</b>\n\n"
-        "چه نوع پیشنهادی دوست داری؟"
+    text = build_screen(
+        emoji="🎲",
+        title="امروز چی بپزم؟",
+        description=[
+            "نمیدونی چی بپزی؟ بذار انتخاب کنم!",
+            "یک فیلتر انتخاب کن یا کاملاً شانسی برو.",
+        ],
+        details=[
+            "⚡  سریع  ·  💰  اقتصادی  ·  🌱  گیاهی",
+            "🍗  مرغ  ·  🥩  گوشت  ·  🍚  برنجی",
+        ],
     )
     safe_edit(bot, chat_id, message_id, text, random_menu_keyboard())
 
@@ -32,7 +53,14 @@ def show_random_result(bot: TeleBot, chat_id: int, message_id: int, telegram_id:
 
     recipe = random_service.get_random(filter_key, exclude)
     if not recipe:
-        text = "🎲 متأسفانه غذایی پیدا نشد.\nفیلتر دیگه‌ای امتحان کن 👇"
+        text = build_screen(
+            emoji="🎲",
+            title="پیشنهاد شانسی",
+            description=[
+                "متأسفانه غذایی با این فیلتر پیدا نشد.",
+                "فیلتر دیگه‌ای امتحان کن.",
+            ],
+        )
         safe_edit(bot, chat_id, message_id, text, random_menu_keyboard())
         return
 
@@ -44,12 +72,24 @@ def show_random_result(bot: TeleBot, chat_id: int, message_id: int, telegram_id:
         events_repo.log("random", user["id"], {"filter": filter_key, "recipe_id": recipe["id"]})
 
     total_time = recipe.get("prep_time", 0) + recipe.get("cook_time", 0)
-    text = (
-        "🎲 <b>پیشنهاد من:</b>\n\n"
-        f"{recipe.get('emoji', '🍲')} <b>{esc(recipe['name'])}</b>\n\n"
-        f"⏱ حدود {total_time} دقیقه\n"
-        f"💰 {cost_label(recipe.get('cost_level', 'medium'))}\n"
-        f"👨‍🍳 {difficulty_label(recipe.get('difficulty', 'medium'))}"
+    filter_label = FILTER_LABELS.get(filter_key, "🎲  شانسی")
+    desc = recipe.get("description") or "یک پیشنهاد خوش‌طعم برای امروزت"
+
+    text = build_screen(
+        emoji="🎲",
+        title="پیشنهاد شانسی",
+        description=[
+            f"{recipe.get('emoji', '🍲')}  <b>{esc(recipe['name'])}</b>",
+            desc[:100] + ("…" if len(desc) > 100 else ""),
+        ],
+        details=[
+            f"🏷  فیلتر: {filter_label}",
+            f"⏱  زمان: <b>{total_time}</b> دقیقه",
+            f"💰  هزینه: {cost_label(recipe.get('cost_level', 'medium'))}",
+            f"👨‍🍳  سختی: {difficulty_label(recipe.get('difficulty', 'medium'))}",
+        ],
+        footer=ACTION_FOOTER,
+        escape_title=False,
     )
     safe_edit(bot, chat_id, message_id, text, random_result_keyboard(recipe["id"]))
 

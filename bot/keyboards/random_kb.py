@@ -1,45 +1,43 @@
 from telebot import types
 
-from bot.keyboards.navigation import nav_row
+from bot.keyboards.builder import btn, append_nav
 
 
 def random_menu_keyboard() -> types.InlineKeyboardMarkup:
     kb = types.InlineKeyboardMarkup(row_width=2)
-    kb.add(types.InlineKeyboardButton("🎲 کاملاً شانسی", callback_data="random:full"))
+    kb.add(btn("🎲  کاملاً شانسی", "random:full"))
     kb.add(
-        types.InlineKeyboardButton("⚡ سریع", callback_data="random:fast"),
-        types.InlineKeyboardButton("💰 اقتصادی", callback_data="random:cheap"),
+        btn("⚡  سریع", "random:fast"),
+        btn("💰  اقتصادی", "random:cheap"),
     )
     kb.add(
-        types.InlineKeyboardButton("🍗 با مرغ", callback_data="random:chicken"),
-        types.InlineKeyboardButton("🥩 گوشتی", callback_data="random:meat"),
+        btn("🍗  با مرغ", "random:chicken"),
+        btn("🥩  گوشتی", "random:meat"),
     )
     kb.add(
-        types.InlineKeyboardButton("🌱 بدون گوشت", callback_data="random:vegetarian"),
-        types.InlineKeyboardButton("🍚 برنجی", callback_data="random:rice"),
+        btn("🌱  بدون گوشت", "random:vegetarian"),
+        btn("🍚  برنجی", "random:rice"),
     )
     kb.add(
-        types.InlineKeyboardButton("🥖 نونی", callback_data="random:bread"),
-        types.InlineKeyboardButton("🥘 سنتی", callback_data="random:traditional"),
+        btn("🥖  نونی", "random:bread"),
+        btn("🥘  سنتی", "random:traditional"),
     )
-    kb.row(*nav_row())
-    return kb
+    return append_nav(kb)
 
 
 def random_result_keyboard(recipe_id: int) -> types.InlineKeyboardMarkup:
     kb = types.InlineKeyboardMarkup(row_width=2)
     kb.add(
-        types.InlineKeyboardButton("📖 ببینمش", callback_data=f"recipe:view:{recipe_id}"),
-        types.InlineKeyboardButton("🎲 یکی دیگه", callback_data="random:next"),
+        btn("📖  مشاهده غذا", f"recipe:view:{recipe_id}"),
+        btn("🎲  یکی دیگه", "random:next"),
     )
     kb.add(
-        types.InlineKeyboardButton("❤️ ذخیره", callback_data=f"recipe:favorite:{recipe_id}"),
-        types.InlineKeyboardButton("🏠 خانه", callback_data="nav:home"),
+        btn("❤️  ذخیره", f"recipe:favorite:{recipe_id}"),
+        btn("🏠  خانه", "nav:home"),
     )
     return kb
 
 
 def search_prompt_keyboard() -> types.InlineKeyboardMarkup:
-    kb = types.InlineKeyboardMarkup(row_width=1)
-    kb.row(*nav_row())
-    return kb
+    kb = types.InlineKeyboardMarkup(row_width=2)
+    return append_nav(kb)
