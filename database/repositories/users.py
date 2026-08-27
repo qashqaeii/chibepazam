@@ -160,3 +160,51 @@ class UsersRepository:
             raise
         finally:
             conn.close()
+
+    def get_active_telegram_ids(self) -> list[int]:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT telegram_id FROM users WHERE is_active = 1 AND is_blocked = 0"
+            )
+            return [int(row[0]) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def count_favorites_total(self) -> int:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM user_favorites")
+            return int(cursor.fetchone()[0])
+        finally:
+            conn.close()
+
+    def top_pantry_ingredients(self, limit: int = 5) -> list[dict]:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                """
+                SELECT i.name, i.emoji, COUNT(*) AS cnt
+                FROM user_pantry up
+                JOIN ingredients i ON i.id = up.ingredient_id
+                GROUP BY i.id ORDER BY cnt DESC LIMIT %s
+                """,
+                (limit,),
+            )
+            return cursor.fetchall()
+        finally:
+            conn.close()
+
+    def get_active_telegram_ids(self) -> list[int]:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT telegram_id FROM users WHERE is_active = 1 AND is_blocked = 0"
+            )
+            return [int(row[0]) for row in cursor.fetchall()]
+        finally:
+            conn.close()

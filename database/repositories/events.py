@@ -55,6 +55,22 @@ class EventsRepository:
         finally:
             conn.close()
 
+    def top_searches(self, limit: int = 5) -> list[dict]:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                """
+                SELECT query, COUNT(*) AS cnt FROM user_search_history
+                WHERE searched_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
+                GROUP BY query ORDER BY cnt DESC LIMIT %s
+                """,
+                (limit,),
+            )
+            return cursor.fetchall()
+        finally:
+            conn.close()
+
     def check_rate_limit(self, telegram_id: int, action: str, max_count: int, seconds: int) -> bool:
         """Return True if allowed, False if rate limited."""
         conn = get_connection()

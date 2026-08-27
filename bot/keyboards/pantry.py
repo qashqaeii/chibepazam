@@ -14,7 +14,8 @@ def pantry_main_keyboard(categories: list[dict], selected_count: int) -> types.I
         kb.row(*row)
 
     kb.add(btn("📋  انتخاب‌های من", "pantry:selected"))
-    kb.add(btn("🔥  چی می‌تونم بپزم؟", "pantry:recommend"))
+    kb.add(btn("🎛  فیلتر پیشنهاد", "pantry:recommend"))
+    kb.add(btn("🔥  چی می‌تونم بپزم؟", "pantry:recgo"))
     return append_nav(kb)
 
 

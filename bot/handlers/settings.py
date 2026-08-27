@@ -148,17 +148,17 @@ def register_settings_handlers(bot: TeleBot) -> None:
             show_settings(bot, chat_id, msg_id, user_id)
 
         elif parts[1] == "forbidden":
-            text = build_screen(
-                emoji="🚫",
-                title="مواد غیرمجاز",
-                description="این قابلیت به زودی فعال می‌شود.",
-                details=["💡  می‌تونی موادی که نمی‌خوری رو حذف کنی"],
-            )
-            from bot.keyboards.builder import append_nav
-            from telebot import types
-            kb = types.InlineKeyboardMarkup(row_width=2)
-            append_nav(kb)
-            safe_edit(bot, chat_id, msg_id, text, kb)
+            nav_service.navigate(user_id, "settings_forbidden", {"page": 1})
+            from bot.handlers.forbidden_settings import show_forbidden
+            show_forbidden(bot, chat_id, msg_id, user_id)
+
+        elif parts[1] == "forb":
+            ingredient_id = int(parts[2])
+            page = int(parts[3]) if len(parts) > 3 else 1
+            settings_repo.toggle_forbidden(user_id, ingredient_id)
+            nav_service.replace(user_id, "settings_forbidden", {"page": page})
+            from bot.handlers.forbidden_settings import show_forbidden
+            show_forbidden(bot, chat_id, msg_id, user_id, page)
 
         else:
             show_settings(bot, chat_id, msg_id, user_id)
@@ -172,3 +172,14 @@ def register_settings_handlers(bot: TeleBot) -> None:
         page = int(call.data.split(":")[2])
         nav_service.replace(user["id"], "settings_permanent", {"page": page})
         show_permanent(bot, call.message.chat.id, call.message.message_id, user["id"], page)
+
+    @bot.callback_query_handler(func=lambda c: c.data and c.data.startswith("page:forb:"))
+    def handle_forb_page(call):
+        answer_callback(bot, call)
+        user = user_service.get_user(call.from_user.id)
+        if not user:
+            return
+        page = int(call.data.split(":")[2])
+        nav_service.replace(user["id"], "settings_forbidden", {"page": page})
+        from bot.handlers.forbidden_settings import show_forbidden
+        show_forbidden(bot, call.message.chat.id, call.message.message_id, user["id"], page)

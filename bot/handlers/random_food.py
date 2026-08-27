@@ -51,7 +51,9 @@ def show_random_result(bot: TeleBot, chat_id: int, message_id: int, telegram_id:
     if telegram_id in _last_random and filter_key == _last_filter.get(telegram_id, "full"):
         exclude = [_last_random[telegram_id]["id"]]
 
-    recipe = random_service.get_random(filter_key, exclude)
+    user = user_service.get_user(telegram_id)
+    user_id = user["id"] if user else None
+    recipe = random_service.get_random(filter_key, exclude, user_id=user_id)
     if not recipe:
         text = build_screen(
             emoji="🎲",

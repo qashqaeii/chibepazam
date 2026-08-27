@@ -66,12 +66,18 @@ def recipe_detail_screen(recipe: dict, match=None) -> str:
     desc = recipe.get("description") or "یک غذای خوش‌طعم ایرانی"
 
     total_time = recipe.get("prep_time", 0) + recipe.get("cook_time", 0)
+    rating = recipe.get("rating", 4.0)
+    rating_count = recipe.get("rating_count", 0)
+    rating_line = f"⭐ امتیاز: <b>{rating:.1f}</b>"
+    if rating_count:
+        rating_line += f"  ({rating_count} رأی)"
+    display_servings = recipe.get("display_servings") or recipe.get("servings", 4)
     details = _lines(
-        f"⭐ امتیاز: <b>{recipe.get('rating', 4.0)}</b>",
+        rating_line,
         f"⏱ زمان: <b>{total_time}</b> دقیقه",
         f"👨‍🍳 سختی: {difficulty_label(recipe.get('difficulty', 'medium'))}",
         f"💰 هزینه: {cost_label(recipe.get('cost_level', 'medium'))}",
-        f"👨‍👩‍👧‍👦 مناسب: <b>{recipe.get('servings', 4)}</b> نفر",
+        f"👨‍👩‍👧‍👦 مناسب: <b>{display_servings}</b> نفر",
     )
 
     body = None

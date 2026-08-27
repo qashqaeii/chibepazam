@@ -22,9 +22,19 @@ def register_start_handlers(bot: TeleBot) -> None:
             message.from_user.last_name,
         )
         events_repo.log("start", user["id"])
-        nav_service.clear(user["id"])
-        nav_service.set_current(user["id"], "home", {})
 
+        saved = nav_service.get_current(user["id"])
+        if saved and saved.get("screen") and saved["screen"] != "home":
+            from bot.handlers.navigation import render_screen
+            msg = bot.send_message(message.chat.id, "⏳", parse_mode="HTML")
+            if render_screen(
+                bot, message.chat.id, msg.message_id, user["id"],
+                saved["screen"], saved.get("payload") or {},
+                message.from_user.id,
+            ):
+                return
+
+        nav_service.set_current(user["id"], "home", {})
         name = esc(message.from_user.first_name or "دوست")
         text = main_menu_text(greeting=f"سلام {name}! 👋")
         bot.send_message(

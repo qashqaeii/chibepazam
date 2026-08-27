@@ -38,7 +38,10 @@ class RecipesRepository:
         try:
             cursor = conn.cursor(dictionary=True)
             cursor.execute(
-                "SELECT * FROM recipes WHERE is_active = 1 ORDER BY name"
+                """SELECT r.*, rc.slug AS category_slug
+                   FROM recipes r
+                   LEFT JOIN recipe_categories rc ON rc.id = r.category_id
+                   WHERE r.is_active = 1 ORDER BY r.name"""
             )
             return cursor.fetchall()
         finally:
@@ -48,15 +51,37 @@ class RecipesRepository:
         conn = get_connection()
         try:
             cursor = conn.cursor(dictionary=True)
-            like = f"%{query}%"
+            q = query.strip()
+            if len(q) < 2:
+                return []
+            try:
+                cursor.execute(
+                    """
+                    SELECT DISTINCT r.* FROM recipes r
+                    LEFT JOIN recipe_ingredients ri ON ri.recipe_id = r.id
+                    LEFT JOIN ingredients i ON i.id = ri.ingredient_id
+                    WHERE r.is_active = 1 AND (
+                        MATCH(r.name, r.description) AGAINST (%s IN NATURAL LANGUAGE MODE)
+                        OR r.name LIKE %s OR i.name LIKE %s
+                    )
+                    LIMIT %s
+                    """,
+                    (q, f"%{q}%", f"%{q}%", limit),
+                )
+                rows = cursor.fetchall()
+                if rows:
+                    return rows
+            except Exception:
+                pass
+            like = f"%{q}%"
             cursor.execute(
                 """SELECT DISTINCT r.* FROM recipes r
                    LEFT JOIN recipe_ingredients ri ON ri.recipe_id = r.id
                    LEFT JOIN ingredients i ON i.id = ri.ingredient_id
                    WHERE r.is_active = 1
-                   AND (r.name LIKE %s OR i.name LIKE %s)
+                   AND (r.name LIKE %s OR r.description LIKE %s OR i.name LIKE %s)
                    LIMIT %s""",
-                (like, like, limit),
+                (like, like, like, limit),
             )
             return cursor.fetchall()
         finally:
@@ -148,6 +173,44 @@ class RecipesRepository:
                    ORDER BY COUNT(*) DESC
                    LIMIT %s""",
                 (recipe_id, recipe_id, limit),
+            )
+            return cursor.fetchall()
+        finally:
+            conn.close()
+
+    def toggle_active(self, recipe_id: int) -> bool:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE recipes SET is_active = NOT is_active WHERE id = %s",
+                (recipe_id,),
+            )
+            conn.commit()
+            cursor.execute("SELECT is_active FROM recipes WHERE id = %s", (recipe_id,))
+            row = cursor.fetchone()
+            return bool(row[0]) if row else False
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def list_page(self, page: int = 1, per_page: int = 15) -> tuple[list[dict], int, int]:
+        from utils.pagination import paginate
+
+        all_recipes = self.get_all_active() + self._get_inactive()
+        return paginate(all_recipes, page, per_page)
+
+    def _get_inactive(self) -> list[dict]:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                """SELECT r.*, rc.slug AS category_slug
+                   FROM recipes r
+                   LEFT JOIN recipe_categories rc ON rc.id = r.category_id
+                   WHERE r.is_active = 0 ORDER BY r.name"""
             )
             return cursor.fetchall()
         finally:

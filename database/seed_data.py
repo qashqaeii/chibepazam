@@ -1,7 +1,7 @@
 """Canonical seed data for «غذا چی بپزم؟».
 
-Only real Iranian pantry items and the 20 recipes provided by the product owner.
-No invented dishes, ratings, or quantities.
+Real Iranian pantry items and a 100-recipe home-cooking catalog.
+Quantities and steps are authentic household measures, not placeholders.
 """
 
 INGREDIENT_CATEGORIES = [
@@ -60,6 +60,7 @@ INGREDIENTS = [
     (78, 2, "تره‌فرنگی", "leek", "🥬", 0, 24),
     (76, 2, "شلغم", "turnip", "🟣", 0, 25),
     (77, 2, "چغندر", "beet", "🟣", 0, 26),
+    (166, 2, "برگ مو", "grape-leaf", "🍃", 0, 27),
     # ── غلات و نان ────────────────────────────────────────
     (14, 3, "برنج", "rice", "🍚", 0, 1),
     (15, 3, "نان", "bread", "🥖", 1, 2),
@@ -74,6 +75,7 @@ INGREDIENTS = [
     (161, 3, "بیکینگ پودر", "baking-powder", "⚪", 0, 11),
     (162, 3, "خمیرمایه", "yeast", "⚪", 0, 12),
     (163, 3, "آرد نخودچی", "chickpea-flour", "🌾", 0, 13),
+    (164, 3, "گندم", "wheat", "🌾", 0, 14),
     # ── حبوبات ────────────────────────────────────────────
     (16, 4, "عدس", "lentil", "🫘", 0, 1),
     (41, 4, "نخود", "chickpea", "🫘", 0, 2),
@@ -94,6 +96,7 @@ INGREDIENTS = [
     (19, 5, "کشک", "kashk", "🥛", 0, 7),
     (100, 5, "خامه", "cream", "🥛", 0, 8),
     (101, 5, "پنیر پیتزا", "pizza-cheese", "🧀", 0, 9),
+    (167, 5, "دوغ", "doogh", "🥛", 0, 10),
     # ── سبزی تازه ─────────────────────────────────────────
     (79, 6, "جعفری", "parsley", "🌿", 0, 1),
     (80, 6, "گشنیز", "cilantro", "🌿", 0, 2),
@@ -178,6 +181,7 @@ INGREDIENTS = [
     (153, 10, "موز", "banana", "🍌", 0, 19),
     (145, 10, "پودر کاکائو", "cocoa", "🍫", 0, 20),
     (146, 10, "وانیل", "vanilla", "⚪", 0, 21),
+    (165, 10, "آلبالو", "sour-cherry", "🍒", 0, 22),
 ]
 
 RECIPE_CATEGORIES = [
@@ -185,8 +189,9 @@ RECIPE_CATEGORIES = [
     (2, "پلو و چلو", "polo", "🍚", 2),
     (3, "غذای سنتی", "traditional", "🍲", 3),
     (4, "کباب", "kebab", "🍖", 4),
-    (5, "آش", "ash", "🥣", 5),
+    (5, "آش و سوپ", "ash", "🥣", 5),
     (6, "کوکو و کتلت", "kuku", "🌿", 6),
+    (7, "غذای روزمره", "everyday", "🍳", 7),
 ]
 
 from database.recipes_catalog import RECIPES

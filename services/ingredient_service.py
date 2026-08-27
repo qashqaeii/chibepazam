@@ -41,5 +41,8 @@ class IngredientService:
     def get_permanent_ids(self, user_id: int) -> set[int]:
         return self.pantry_repo.get_permanent_ids(user_id)
 
+    def get_all_active(self) -> list[dict]:
+        return self.ingredients_repo.get_all_active()
+
     def get_common_for_permanent(self) -> list[dict]:
         return self.ingredients_repo.get_common_ingredients()

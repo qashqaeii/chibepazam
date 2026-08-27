@@ -17,16 +17,16 @@ def test_seed_integrity():
 
     assert len(INGREDIENTS) == len(ing_ids)
     assert len(ing_slugs) == len(set(ing_slugs))
-    assert len(RECIPES) == 20
-    assert len({r["id"] for r in RECIPES}) == 20
-    assert len({r["slug"] for r in RECIPES}) == 20
+    assert len(RECIPES) == 100
+    assert len({r["id"] for r in RECIPES}) == 100
+    assert len({r["slug"] for r in RECIPES}) == 100
     assert len(INGREDIENT_CATEGORIES) == 10
     assert len(INGREDIENTS) >= 120
     assert len({i[3] for i in INGREDIENTS if i[5] == 1}) >= 15
     from collections import Counter
     per_cat = Counter(i[1] for i in INGREDIENTS)
     assert all(n >= 6 for n in per_cat.values()), dict(per_cat)
-    assert len(RECIPE_CATEGORIES) == 6
+    assert len(RECIPE_CATEGORIES) == 7
 
     for item in INGREDIENTS:
         assert item[1] in cat_ids, item

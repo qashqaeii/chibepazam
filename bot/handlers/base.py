@@ -62,6 +62,12 @@ def show_error(bot: TeleBot, call: types.CallbackQuery, retry_callback: str = "n
     )
 
 
+def check_text_rate_limit(telegram_id: int, max_count: int = 15, seconds: int = 10) -> bool:
+    from database.repositories.events import EventsRepository
+
+    return EventsRepository().check_rate_limit(telegram_id, "message", max_count, seconds)
+
+
 def answer_callback(bot: TeleBot, call: types.CallbackQuery, text: str | None = None) -> None:
     from database.repositories.events import EventsRepository
 

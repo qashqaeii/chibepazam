@@ -8,6 +8,7 @@ from bot.handlers.favorites import show_favorites
 from bot.handlers.history import show_history
 from bot.handlers.profile import show_profile
 from bot.handlers.settings import show_settings
+from bot.handlers.decision import show_decision_start
 from bot.handlers.navigation import handle_back
 from services.user_service import UserService
 from services.nav_service import nav_service
@@ -37,6 +38,7 @@ def register_menu_handlers(bot: TeleBot) -> None:
             "history": ("history", {}),
             "profile": ("profile", {}),
             "settings": ("settings", {}),
+            "decide": ("decision_flow", {}),
         }
         if action not in screen_map:
             return
@@ -52,6 +54,7 @@ def register_menu_handlers(bot: TeleBot) -> None:
             "history": lambda: show_history(bot, chat_id, msg_id, uid),
             "profile": lambda: show_profile(bot, chat_id, msg_id, user),
             "settings": lambda: show_settings(bot, chat_id, msg_id, uid),
+            "decide": lambda: show_decision_start(bot, chat_id, msg_id, uid),
         }
         handlers[action]()
 

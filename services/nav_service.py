@@ -1,8 +1,8 @@
 """Navigation stack — Back returns to logical previous screen."""
 
 from database.repositories.users import UsersRepository
+from database.repositories.screen_state import ScreenStateRepository
 
-# Current screen per user (in-memory, keyed by internal user_id)
 _current: dict[int, dict] = {}
 
 
@@ -13,7 +13,9 @@ class NavService:
         "pantry_category",
         "pantry_selected",
         "recommendations",
+        "recommend_filters",
         "recipe_detail",
+        "recipe_similar",
         "favorites",
         "history",
         "random_menu",
@@ -24,41 +26,69 @@ class NavService:
         "settings_permanent",
         "settings_servings",
         "settings_diet",
+        "settings_forbidden",
         "profile",
+        "decision_flow",
+        "shopping_cart",
         "admin_main",
         "admin_page",
     )
 
     def __init__(self):
         self._repo = UsersRepository()
+        self._screen_repo = ScreenStateRepository()
+
+    def _hydrate(self, user_id: int) -> dict | None:
+        if user_id in _current:
+            return _current[user_id]
+        try:
+            saved = self._screen_repo.load(user_id)
+            if saved:
+                _current[user_id] = saved
+                return saved
+        except Exception:
+            pass
+        return None
 
     def get_current(self, user_id: int) -> dict | None:
-        return _current.get(user_id)
+        return self._hydrate(user_id)
 
     def set_current(self, user_id: int, screen: str, payload: dict | None = None) -> None:
-        _current[user_id] = {"screen": screen, "payload": payload or {}}
+        entry = {"screen": screen, "payload": payload or {}}
+        _current[user_id] = entry
+        try:
+            self._screen_repo.save(user_id, screen, payload or {})
+        except Exception:
+            pass
 
     def push_current(self, user_id: int) -> None:
-        cur = _current.get(user_id)
+        cur = self._hydrate(user_id)
         if cur:
-            self._repo.push_nav(user_id, cur["screen"], cur["payload"])
+            try:
+                self._repo.push_nav(user_id, cur["screen"], cur["payload"])
+            except Exception:
+                pass
 
     def navigate(self, user_id: int, screen: str, payload: dict | None = None) -> None:
-        """Push current screen then set new current (call before rendering forward)."""
         self.push_current(user_id)
         self.set_current(user_id, screen, payload)
 
     def replace(self, user_id: int, screen: str, payload: dict | None = None) -> None:
-        """Update current screen without pushing (pagination, toggle)."""
         self.set_current(user_id, screen, payload)
 
     def clear(self, user_id: int) -> None:
         _current.pop(user_id, None)
-        self._repo.clear_nav(user_id)
+        try:
+            self._repo.clear_nav(user_id)
+            self._screen_repo.clear(user_id)
+        except Exception:
+            pass
 
     def pop_and_get(self, user_id: int) -> dict | None:
-        """Pop stack entry to navigate back to."""
-        entry = self._repo.pop_nav(user_id)
+        try:
+            entry = self._repo.pop_nav(user_id)
+        except Exception:
+            entry = None
         if entry:
             self.set_current(user_id, entry["screen"], entry.get("payload") or {})
             return entry

@@ -35,6 +35,10 @@ def render_screen(
     from bot.handlers.settings import show_settings, show_permanent, show_servings, show_diet
     from bot.handlers.profile import show_profile
     from bot.handlers.admin import show_admin_dashboard
+    from bot.handlers.forbidden_settings import show_forbidden
+    from bot.handlers.decision import show_decision_start
+    from bot.handlers.shopping import show_cart
+    from bot.handlers.pantry import show_recommend_filters
 
     tid = telegram_id
 
@@ -63,6 +67,40 @@ def render_screen(
         if screen == "recommendations":
             show_recommendations(bot, chat_id, message_id, user_id, payload.get("page", 1))
             return True
+
+        if screen == "recommend_filters":
+            show_recommend_filters(bot, chat_id, message_id, user_id)
+            return True
+
+        if screen == "settings_forbidden":
+            show_forbidden(bot, chat_id, message_id, user_id, payload.get("page", 1))
+            return True
+
+        if screen == "decision_flow":
+            show_decision_start(bot, chat_id, message_id, user_id)
+            return True
+
+        if screen == "shopping_cart":
+            show_cart(bot, chat_id, message_id, user_id)
+            return True
+
+        if screen == "recipe_similar":
+            recipe_id = payload.get("recipe_id")
+            if recipe_id:
+                from services.recipe_service import RecipeService
+                from bot.keyboards.recipe import recipe_list_keyboard, recipe_sub_keyboard
+                from utils.screen import build_screen, ACTION_FOOTER
+                similar = RecipeService().get_similar(recipe_id)
+                if similar:
+                    text = build_screen(
+                        emoji="🔄", title="غذاهای مشابه",
+                        description="این غذاها به غذای انتخابی شما نزدیک‌ترن:",
+                        details=[f"📋  {len(similar)} پیشنهاد"], footer=ACTION_FOOTER,
+                    )
+                    safe_edit(bot, chat_id, message_id, text, recipe_list_keyboard(similar))
+                    return True
+                show_recipe(bot, chat_id, message_id, user_id, recipe_id)
+                return True
 
         if screen == "recipe_detail":
             recipe_id = payload.get("recipe_id")

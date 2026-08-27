@@ -1,6 +1,6 @@
 from telebot import TeleBot, types
 
-from bot.handlers.base import safe_edit
+from bot.handlers.base import safe_edit, check_text_rate_limit
 from bot.keyboards.random_kb import search_prompt_keyboard
 from bot.keyboards.recipe import recipe_list_keyboard
 from bot.keyboards.builder import append_nav
@@ -69,6 +69,10 @@ def register_search_handlers(bot: TeleBot) -> None:
     def handle_search_query(message: types.Message):
         state_data = state_manager.get(message.from_user.id)
         state_manager.clear(message.from_user.id)
+
+        if not check_text_rate_limit(message.from_user.id):
+            bot.send_message(message.chat.id, "⏳ کمی صبر کن و دوباره بنویس.", parse_mode="HTML")
+            return
 
         user = user_service.get_user(message.from_user.id)
         if not user:

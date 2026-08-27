@@ -8,15 +8,27 @@ from bot.keyboards.recipe import (
     recipe_steps_keyboard,
     recipe_missing_keyboard,
     shopping_message_keyboard,
+    rating_keyboard,
 )
 from services.recipe_service import RecipeService
+from services.rating_service import RatingService, RATING_LABELS
+from services.cooked_service import CookedService
+from services.dislike_service import DislikeService
+from services.substitute_service import SubstituteService
+from services.shopping_service import ShoppingService
 from services.user_service import UserService
 from services.nav_service import nav_service
 from utils.screen import build_screen, recipe_detail_screen, list_body, ACTION_FOOTER
 from utils.telegram import esc
+from utils.share import build_recipe_share_text, build_recipe_share_url
 
 
 recipe_service = RecipeService()
+rating_service = RatingService()
+cooked_service = CookedService()
+dislike_service = DislikeService()
+substitute_service = SubstituteService()
+shopping_service = ShoppingService()
 user_service = UserService()
 _bot_username: str | None = None
 
@@ -26,9 +38,9 @@ def _get_bot_username(bot: TeleBot) -> str:
     if _bot_username:
         return _bot_username
     try:
-        _bot_username = bot.get_me().username or ""
+        _bot_username = bot.get_me().username or "Chibepazamrobot"
     except Exception:
-        _bot_username = ""
+        _bot_username = "Chibepazamrobot"
     return _bot_username
 
 
@@ -37,17 +49,24 @@ def _missing_share_url(bot: TeleBot, recipe: dict, missing: list[dict]) -> str |
 
     if not missing:
         return None
-    return build_share_url(build_shopping_list(recipe, missing), _get_bot_username(bot))
+    servings = recipe.get("display_servings") or recipe.get("servings") or 4
+    return build_share_url(build_shopping_list(recipe, missing, servings), _get_bot_username(bot))
 
 
 def show_recipe(bot: TeleBot, chat_id: int, message_id: int, user_id: int, recipe_id: int) -> None:
     recipe = recipe_service.view_recipe(user_id, recipe_id)
     if not recipe:
         return
+    cart_count = shopping_service.count(user_id)
     text = recipe_detail_screen(recipe, recipe.get("match"))
     safe_edit(
         bot, chat_id, message_id, text,
-        recipe_detail_keyboard(recipe_id, recipe.get("is_favorite", False)),
+        recipe_detail_keyboard(
+            recipe_id,
+            recipe.get("is_favorite", False),
+            recipe.get("is_disliked", False),
+            cart_count,
+        ),
     )
 
 
@@ -106,7 +125,60 @@ def register_recipe_handlers(bot: TeleBot) -> None:
                 recipe_id = int(parts[2])
                 is_fav = recipe_service.toggle_favorite(user_id, recipe_id)
                 answer_callback(bot, call, "❤️ ذخیره شد" if is_fav else "💔 حذف شد")
-                nav_service.replace(user_id, "recipe_detail", {"recipe_id": recipe_id})
+                show_recipe(bot, chat_id, msg_id, user_id, recipe_id)
+
+            elif action == "ratemenu":
+                answer_callback(bot, call)
+                recipe_id = int(parts[2])
+                recipe = recipe_service.get_recipe(recipe_id)
+                current = rating_service.get_user_rating(user_id, recipe_id)
+                text = build_screen(
+                    emoji="⭐",
+                    title=f"امتیاز — {recipe['name'] if recipe else ''}",
+                    description="تجربه‌ات از این غذا چطور بود؟",
+                    footer="👇 یک گزینه انتخاب کن",
+                    escape_title=False,
+                )
+                safe_edit(bot, chat_id, msg_id, text, rating_keyboard(recipe_id, current))
+
+            elif action == "rate":
+                recipe_id = int(parts[2])
+                rating_key = parts[3]
+                rating_service.set_rating(user_id, recipe_id, rating_key)
+                answer_callback(bot, call, RATING_LABELS.get(rating_key, "ثبت شد"))
+                show_recipe(bot, chat_id, msg_id, user_id, recipe_id)
+
+            elif action == "cooked":
+                recipe_id = int(parts[2])
+                count = cooked_service.mark_cooked(user_id, recipe_id)
+                answer_callback(bot, call, f"🍽 ثبت شد ({count} بار)")
+                show_recipe(bot, chat_id, msg_id, user_id, recipe_id)
+
+            elif action == "dislike":
+                recipe_id = int(parts[2])
+                active = dislike_service.toggle(user_id, recipe_id)
+                answer_callback(bot, call, "🚫 دیگر پیشنهاد نمی‌شود" if active else "✅ دوباره پیشنهاد می‌شود")
+                show_recipe(bot, chat_id, msg_id, user_id, recipe_id)
+
+            elif action == "subst":
+                answer_callback(bot, call)
+                recipe_id = int(parts[2])
+                lines = substitute_service.format_lines(recipe_id)
+                body = list_body(lines, "جایگزینی برای این غذا ثبت نشده است.")
+                recipe = recipe_service.get_recipe(recipe_id)
+                text = build_screen(
+                    emoji="🔄",
+                    title=f"جایگزین مواد — {recipe['name'] if recipe else ''}",
+                    body=body,
+                    footer=ACTION_FOOTER,
+                    escape_title=False,
+                )
+                safe_edit(bot, chat_id, msg_id, text, recipe_sub_keyboard(recipe_id))
+
+            elif action == "cartadd":
+                recipe_id = int(parts[2])
+                n = shopping_service.add_recipe(user_id, recipe_id)
+                answer_callback(bot, call, f"🛒 به لیست اضافه شد ({n} غذا)")
                 show_recipe(bot, chat_id, msg_id, user_id, recipe_id)
 
             elif action == "ingredients":
@@ -117,8 +189,8 @@ def register_recipe_handlers(bot: TeleBot) -> None:
                     return
                 from services.ingredient_service import IngredientService
                 combined = IngredientService().get_combined_ids(user_id)
-
-                lines = []
+                servings = recipe.get("display_servings") or 4
+                lines = [f"👥 مقادیر برای <b>{servings}</b> نفر:", ""]
                 for ri in recipe.get("ingredients", []):
                     mark = "✅" if ri["ingredient_id"] in combined else "❌"
                     qty = " ".join(
@@ -127,7 +199,6 @@ def register_recipe_handlers(bot: TeleBot) -> None:
                     optional = "  ·  اختیاری" if ri.get("is_optional") else ""
                     amount = f" — {qty}{optional}" if qty or optional else ""
                     lines.append(f"{mark}  {ri['emoji']} {esc(ri['name'])}{amount}")
-
                 have = sum(1 for ri in recipe.get("ingredients", []) if ri["ingredient_id"] in combined)
                 total = len(recipe.get("ingredients", []))
                 text = build_screen(
@@ -189,7 +260,8 @@ def register_recipe_handlers(bot: TeleBot) -> None:
                     return
                 from utils.shopping import build_shopping_list
 
-                plain = build_shopping_list(recipe, missing)
+                servings = recipe.get("display_servings") or 4
+                plain = build_shopping_list(recipe, missing, servings)
                 share_url = _missing_share_url(bot, recipe, missing)
                 answer_callback(bot, call, "لیست خرید آماده شد ✅")
                 try:
@@ -210,20 +282,16 @@ def register_recipe_handlers(bot: TeleBot) -> None:
                 similar = recipe_service.get_similar(recipe_id)
                 if not similar:
                     text = build_screen(
-                        emoji="🔄",
-                        title="غذاهای مشابه",
-                        description="غذای مشابهی پیدا نشد.",
-                        footer=ACTION_FOOTER,
+                        emoji="🔄", title="غذاهای مشابه",
+                        description="غذای مشابهی پیدا نشد.", footer=ACTION_FOOTER,
                     )
                     safe_edit(bot, chat_id, msg_id, text, recipe_sub_keyboard(recipe_id))
                 else:
                     nav_service.set_current(user_id, "recipe_similar", {"recipe_id": recipe_id})
                     text = build_screen(
-                        emoji="🔄",
-                        title="غذاهای مشابه",
+                        emoji="🔄", title="غذاهای مشابه",
                         description="این غذاها به غذای انتخابی شما نزدیک‌ترن:",
-                        details=[f"📋  {len(similar)} پیشنهاد"],
-                        footer="👇 روی غذا بزن",
+                        details=[f"📋  {len(similar)} پیشنهاد"], footer="👇 روی غذا بزن",
                     )
                     safe_edit(bot, chat_id, msg_id, text, recipe_list_keyboard(similar))
 
@@ -232,11 +300,15 @@ def register_recipe_handlers(bot: TeleBot) -> None:
                 recipe_id = int(parts[2])
                 recipe = recipe_service.get_recipe(recipe_id)
                 if recipe:
-                    share_text = f"🍲 {recipe['name']}\n\nبا ربات «غذا چی بپزم؟» پیداش کردم!"
-                    try:
-                        bot.answer_callback_query(call.id, share_text, show_alert=True)
-                    except Exception:
-                        pass
+                    share_url = build_recipe_share_url(recipe, _get_bot_username(bot))
+                    text = build_recipe_share_text(recipe, _get_bot_username(bot))
+                    if share_url:
+                        from telebot import types
+                        kb = types.InlineKeyboardMarkup()
+                        kb.add(types.InlineKeyboardButton("📲  اشتراک در تلگرام", url=share_url))
+                        bot.send_message(chat_id, text, reply_markup=kb, disable_web_page_preview=True)
+                    else:
+                        bot.send_message(chat_id, text, disable_web_page_preview=True)
             else:
                 answer_callback(bot, call)
 

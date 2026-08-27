@@ -77,6 +77,28 @@ def ensure_recipe_instructions(cursor, db_name: str) -> None:
         print("  ✓ recipes.instructions already exists")
 
 
+def ensure_rating_count(cursor, db_name: str) -> None:
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM information_schema.columns
+        WHERE table_schema = %s AND table_name = 'recipes' AND column_name = 'rating_count'
+        """,
+        (db_name,),
+    )
+    if cursor.fetchone()[0] == 0:
+        cursor.execute(
+            "ALTER TABLE recipes ADD COLUMN rating_count INT UNSIGNED NOT NULL DEFAULT 0 AFTER rating"
+        )
+        print("  ✓ recipes.rating_count added")
+    else:
+        print("  ✓ recipes.rating_count already exists")
+
+
+def apply_migrations(cursor, db_name: str) -> None:
+    db_dir = os.path.join(os.path.dirname(__file__), "database")
+    run_sql_file(cursor, os.path.join(db_dir, "migrations.sql"), db_name)
+
+
 def verify_tables(cursor, db_name: str) -> None:
     cursor.execute(
         "SELECT COUNT(*) FROM information_schema.tables "
@@ -92,8 +114,8 @@ def verify_tables(cursor, db_name: str) -> None:
 def verify_seed(cursor) -> None:
     checks = {
         "ingredient_categories": 10,
-        "recipe_categories": 6,
-        "recipes": 20,
+        "recipe_categories": 7,
+        "recipes": 100,
     }
     for table, minimum in checks.items():
         cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE is_active = 1")
@@ -145,6 +167,8 @@ def main():
     cursor.execute(f"USE `{db_name}`")
     print("Running migrations...")
     ensure_recipe_instructions(cursor, db_name)
+    ensure_rating_count(cursor, db_name)
+    apply_migrations(cursor, db_name)
     conn.commit()
 
     print("Running seed...")

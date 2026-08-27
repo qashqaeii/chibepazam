@@ -84,6 +84,47 @@ class IngredientsRepository:
         finally:
             conn.close()
 
+    def get_all_active(self) -> list[dict]:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                "SELECT * FROM ingredients WHERE is_active = 1 ORDER BY name"
+            )
+            return cursor.fetchall()
+        finally:
+            conn.close()
+
+    def toggle_active(self, ingredient_id: int) -> bool:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE ingredients SET is_active = NOT is_active WHERE id = %s",
+                (ingredient_id,),
+            )
+            conn.commit()
+            cursor.execute("SELECT is_active FROM ingredients WHERE id = %s", (ingredient_id,))
+            row = cursor.fetchone()
+            return bool(row[0]) if row else False
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+
+    def list_page(self, page: int = 1, per_page: int = 20) -> tuple[list[dict], int, int]:
+        from utils.pagination import paginate
+
+        conn = get_connection()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT * FROM ingredients ORDER BY is_active DESC, name")
+            rows = cursor.fetchall()
+            return paginate(rows, page, per_page)
+        finally:
+            conn.close()
+
     def get_common_ingredients(self) -> list[dict]:
         conn = get_connection()
         try:

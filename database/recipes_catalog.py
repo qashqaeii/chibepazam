@@ -1,20 +1,11 @@
-"""۲۰ غذای ایرانی — دستور کامل و دقیق، بر اساس نمونه‌های محصول."""
+"""کاتالوگ ۱۰۰ غذای ایرانی — دستور کامل خانگی."""
 
-_OPT = dict(required=False, optional=True)
+from database.recipe_builder import _OPT, _ing
+from database.recipes_khoresh import KHORESH_RECIPES
+from database.recipes_polo_kebab import POLO_KEBAB_RECIPES
+from database.recipes_home import HOME_RECIPES
 
-
-def _ing(ingredient_id, amount, unit, importance, required=True, optional=False):
-    return {
-        "ingredient_id": ingredient_id,
-        "amount": amount,
-        "unit": unit,
-        "importance": importance,
-        "is_required": 1 if required else 0,
-        "is_optional": 1 if optional else 0,
-    }
-
-
-RECIPES = [
+CORE_RECIPES = [
     {
         "id": 1,
         "category_id": 1,
@@ -774,3 +765,5 @@ RECIPES = [
         ],
     },
 ]
+
+RECIPES = CORE_RECIPES + KHORESH_RECIPES + POLO_KEBAB_RECIPES + HOME_RECIPES

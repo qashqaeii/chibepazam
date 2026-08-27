@@ -1,7 +1,7 @@
 from telebot import TeleBot
 
 from bot.handlers import start, main_menu, pantry, recipe_handler, random_food
-from bot.handlers import search, favorites, history, profile, settings, admin
+from bot.handlers import search, favorites, history, profile, settings, admin, decision, shopping
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -19,4 +19,6 @@ def register_all_handlers(bot: TeleBot) -> None:
     profile.register_profile_handlers(bot)
     settings.register_settings_handlers(bot)
     admin.register_admin_handlers(bot)
+    decision.register_decision_handlers(bot)
+    shopping.register_shopping_handlers(bot)
     logger.info("All handlers registered")

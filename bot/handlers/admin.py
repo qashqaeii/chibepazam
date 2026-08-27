@@ -1,90 +1,159 @@
 from telebot import TeleBot, types
 
-from bot.handlers.base import safe_edit, answer_callback, show_main_menu
-from bot.keyboards.admin import admin_dashboard_keyboard, admin_back_keyboard
+from bot.handlers.base import safe_edit, answer_callback
+from bot.keyboards.admin import (
+    admin_dashboard_keyboard,
+    admin_back_keyboard,
+    admin_confirm_keyboard,
+    admin_broadcast_preview_keyboard,
+    admin_recipes_keyboard,
+    admin_ingredients_keyboard,
+    admin_categories_keyboard,
+    admin_substitutes_keyboard,
+)
 from services.user_service import UserService
-from database.repositories.users import UsersRepository
-from database.repositories.ingredients import IngredientsRepository
-from database.repositories.recipes import RecipesRepository
-from database.repositories.events import EventsRepository
-from database.repositories.favorites import FavoritesRepository
+from services.admin_service import AdminService
+from services.broadcast_service import BroadcastService
 from states.user_state import UserState, state_manager
+from utils.screen import build_screen, ACTION_FOOTER
 
 
 user_service = UserService()
-users_repo = UsersRepository()
-ingredients_repo = IngredientsRepository()
-recipes_repo = RecipesRepository()
-events_repo = EventsRepository()
-favorites_repo = FavoritesRepository()
-
-
-from utils.screen import build_screen, list_body, ACTION_FOOTER
+admin_service = AdminService()
+broadcast_service = BroadcastService()
 
 
 def show_admin_dashboard(bot: TeleBot, chat_id: int, message_id: int) -> None:
-    users_count = users_repo.count_all()
-    active_today = users_repo.count_active_today()
-    recipes_count = recipes_repo.count_all()
-    ingredients_count = ingredients_repo.count_all()
-    searches_today = events_repo.count_searches_today()
-    random_today = events_repo.count_today("random")
-
+    dash = admin_service.analytics.dashboard()
     text = build_screen(
         emoji="👑",
         title="پنل مدیریت",
         description="خلاصه وضعیت ربات «غذا چی بپزم؟»",
         details=[
-            f"📊  کاربران: <b>{users_count:,}</b>",
-            f"🟢  فعال امروز: <b>{active_today:,}</b>",
-            f"🍲  غذاها: <b>{recipes_count:,}</b>",
-            f"🥕  مواد اولیه: <b>{ingredients_count:,}</b>",
-            f"🔎  جستجوی امروز: <b>{searches_today:,}</b>",
-            f"🎲  پیشنهاد شانسی امروز: <b>{random_today:,}</b>",
+            f"📊  کاربران: <b>{dash['total_users']:,}</b>",
+            f"🟢  DAU: <b>{dash['dau']:,}</b>",
+            f"🍲  غذاها: <b>{admin_service.recipes.count_all():,}</b>",
+            f"🥕  مواد: <b>{admin_service.ingredients.count_all():,}</b>",
+            f"🔎  جستجوی امروز: <b>{dash['searches_today']:,}</b>",
+            f"🎲  شانسی امروز: <b>{dash['random_today']:,}</b>",
+            f"🍽  پخته‌شده: <b>{dash['cooked_total']:,}</b>",
         ],
         footer=ACTION_FOOTER,
     )
     safe_edit(bot, chat_id, message_id, text, admin_dashboard_keyboard())
 
 
-def show_admin_subpage(bot: TeleBot, chat_id: int, message_id: int, action: str) -> None:
+def show_admin_subpage(
+    bot: TeleBot, chat_id: int, message_id: int, action: str, page: int = 1, extra: dict | None = None,
+) -> None:
+    extra = extra or {}
     if action == "stats":
-        text = (
-            "📊 <b>آمار ربات</b>\n\n"
-            f"👥 کل کاربران: {users_repo.count_all():,}\n"
-            f"🟢 فعال امروز: {users_repo.count_active_today():,}\n"
-            f"🔎 جستجو امروز: {events_repo.count_searches_today():,}\n"
-            f"🎲 Random امروز: {events_repo.count_today('random'):,}"
+        d = admin_service.analytics.dashboard()
+        top_r = "\n".join(
+            f"{i+1}. {p.get('emoji','🍲')} {p['name']} — {p['fav_count']} ❤️"
+            for i, p in enumerate(d["top_recipes"])
+        ) or "—"
+        top_i = "\n".join(
+            f"{i+1}. {p.get('emoji','🥕')} {p['name']} — {p['cnt']}"
+            for i, p in enumerate(d["top_ingredients"])
+        ) or "—"
+        top_s = "\n".join(
+            f"{i+1}. {p['query']} — {p['cnt']}"
+            for i, p in enumerate(d["top_searches"])
+        ) or "—"
+        text = build_screen(
+            emoji="📊",
+            title="داشبورد Analytics",
+            details=[
+                f"👥 کل کاربران: <b>{d['total_users']:,}</b>",
+                f"🟢 DAU: <b>{d['dau']:,}</b>",
+                f"🔎 جستجو امروز: <b>{d['searches_today']:,}</b>",
+                f"🎲 Random امروز: <b>{d['random_today']:,}</b>",
+                f"❤️ علاقه‌مندی‌ها: <b>{d['favorites_total']:,}</b>",
+                f"🍽 پخته‌شده: <b>{d['cooked_total']:,}</b>",
+                "",
+                "<b>محبوب‌ترین غذاها</b>",
+                top_r,
+                "",
+                "<b>مواد پرکاربرد</b>",
+                top_i,
+                "",
+                "<b>جستجوهای برتر</b>",
+                top_s,
+            ],
+            footer=ACTION_FOOTER,
         )
         safe_edit(bot, chat_id, message_id, text, admin_back_keyboard())
     elif action == "popular":
-        popular = favorites_repo.count_popular(10)
+        popular = admin_service.analytics.favorites.count_popular(10)
         lines = "هنوز داده‌ای نیست." if not popular else "\n".join(
             f"{i+1}. {p.get('emoji', '🍲')} {p['name']} — {p['fav_count']} ❤️"
             for i, p in enumerate(popular)
         )
         safe_edit(bot, chat_id, message_id, f"❤️ <b>محبوب‌ترین غذاها</b>\n\n{lines}", admin_back_keyboard())
     elif action == "users":
-        text = (
-            "👥 <b>کاربران</b>\n\n"
-            f"تعداد کل: {users_repo.count_all():,}\n"
-            f"فعال امروز: {users_repo.count_active_today():,}"
+        d = admin_service.analytics.dashboard()
+        text = build_screen(
+            emoji="👥",
+            title="کاربران",
+            details=[
+                f"تعداد کل: <b>{d['total_users']:,}</b>",
+                f"فعال امروز: <b>{d['dau']:,}</b>",
+            ],
         )
         safe_edit(bot, chat_id, message_id, text, admin_back_keyboard())
     elif action == "recipes":
-        recipes = recipes_repo.get_all_active()
-        lines = "\n".join(f"{'✅' if r['is_active'] else '❌'} {r['emoji']} {r['name']}" for r in recipes[:20])
-        text = f"🍲 <b>مدیریت غذاها</b> ({len(recipes)})\n\n{lines or '—'}"
-        safe_edit(bot, chat_id, message_id, text, admin_back_keyboard())
+        items, cur, total = admin_service.recipes.list_page(page, 12)
+        text = build_screen(
+            emoji="🍲",
+            title="مدیریت غذاها",
+            description=f"صفحه {cur} از {total} — روی غذا بزن برای فعال/غیرفعال",
+            footer=ACTION_FOOTER,
+        )
+        safe_edit(bot, chat_id, message_id, text, admin_recipes_keyboard(items, cur, total))
     elif action == "ingredients":
-        text = f"🥕 <b>مواد اولیه</b>\n\nتعداد: {ingredients_repo.count_all():,}"
-        safe_edit(bot, chat_id, message_id, text, admin_back_keyboard())
+        items, cur, total = admin_service.ingredients.list_page(page, 16)
+        text = build_screen(
+            emoji="🥕",
+            title="مدیریت مواد",
+            description=f"صفحه {cur} از {total}",
+            footer=ACTION_FOOTER,
+        )
+        safe_edit(bot, chat_id, message_id, text, admin_ingredients_keyboard(items, cur, total))
     elif action == "categories":
-        cats = ingredients_repo.get_categories()
-        lines = "\n".join(f"{c['emoji']} {c['name']}" for c in cats)
-        safe_edit(bot, chat_id, message_id, f"📂 <b>دسته‌بندی‌ها</b>\n\n{lines}", admin_back_keyboard())
+        cats = admin_service.categories.get_all()
+        text = build_screen(
+            emoji="📂",
+            title="دسته‌بندی غذاها",
+            description="روی دسته بزن برای فعال/غیرفعال",
+        )
+        safe_edit(bot, chat_id, message_id, text, admin_categories_keyboard(cats))
+    elif action == "substitutes":
+        subs = admin_service.substitutes.list_all(30)
+        text = build_screen(
+            emoji="🔄",
+            title="جایگزین مواد",
+            description=f"{len(subs)} رکورد — برای حذف روی مورد بزن",
+        )
+        safe_edit(bot, chat_id, message_id, text, admin_substitutes_keyboard(subs))
     else:
         safe_edit(bot, chat_id, message_id, "⚙️ <b>تنظیمات ادمین</b>\n\nبه زودی...", admin_back_keyboard())
+
+
+def _broadcast_preview(data: dict) -> str:
+    count = broadcast_service.recipient_count()
+    parts = [
+        "📢 <b>پیش‌نمایش پیام همگانی</b>",
+        "",
+        data.get("text", "—"),
+        "",
+        f"👥 گیرندگان: <b>{count:,}</b>",
+    ]
+    if data.get("photo_file_id"):
+        parts.append("🖼  تصویر: دارد")
+    if data.get("button_text"):
+        parts.append(f"🔗 دکمه: {data['button_text']}")
+    return "\n".join(parts)
 
 
 def register_admin_handlers(bot: TeleBot) -> None:
@@ -93,11 +162,6 @@ def register_admin_handlers(bot: TeleBot) -> None:
         if not user_service.is_admin(message.from_user.id):
             bot.send_message(message.chat.id, "⛔ دسترسی ندارید.")
             return
-        bot.send_message(
-            message.chat.id,
-            "👑 در حال بارگذاری پنل...",
-            parse_mode="HTML",
-        )
         msg = bot.send_message(message.chat.id, "...", parse_mode="HTML")
         show_admin_dashboard(bot, message.chat.id, msg.message_id)
 
@@ -107,44 +171,188 @@ def register_admin_handlers(bot: TeleBot) -> None:
             answer_callback(bot, call, "⛔ دسترسی ندارید")
             return
 
-        answer_callback(bot, call)
         chat_id = call.message.chat.id
         msg_id = call.message.message_id
-        action = call.data.split(":")[1]
+        parts = call.data.split(":")
+        action = parts[1]
 
         if action == "main":
+            answer_callback(bot, call)
+            state_manager.clear(call.from_user.id)
             show_admin_dashboard(bot, chat_id, msg_id)
+            return
 
-        elif action == "stats":
-            show_admin_subpage(bot, chat_id, msg_id, "stats")
+        if action in ("stats", "popular", "users", "categories", "substitutes", "settings"):
+            answer_callback(bot, call)
+            show_admin_subpage(bot, chat_id, msg_id, action)
+            return
 
-        elif action == "popular":
-            show_admin_subpage(bot, chat_id, msg_id, "popular")
+        if action == "recipes":
+            answer_callback(bot, call)
+            page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+            show_admin_subpage(bot, chat_id, msg_id, "recipes", page)
+            return
 
-        elif action == "users":
-            show_admin_subpage(bot, chat_id, msg_id, "users")
+        if action == "ingredients":
+            answer_callback(bot, call)
+            page = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1
+            show_admin_subpage(bot, chat_id, msg_id, "ingredients", page)
+            return
 
-        elif action == "recipes":
-            show_admin_subpage(bot, chat_id, msg_id, "recipes")
+        if action == "rtog":
+            recipe_id = int(parts[2])
+            page = int(parts[3]) if len(parts) > 3 else 1
+            if len(parts) > 4 and parts[4] == "yes":
+                admin_service.toggle_recipe(recipe_id)
+                answer_callback(bot, call, "وضعیت غذا تغییر کرد")
+                show_admin_subpage(bot, chat_id, msg_id, "recipes", page)
+            else:
+                answer_callback(bot, call)
+                text = build_screen(emoji="⚠️", title="تأیید", description="وضعیت این غذا تغییر کند؟")
+                safe_edit(bot, chat_id, msg_id, text, admin_confirm_keyboard(f"admin:rtog:{recipe_id}:{page}:yes", "admin:recipes"))
+            return
 
-        elif action == "ingredients":
-            show_admin_subpage(bot, chat_id, msg_id, "ingredients")
+        if action == "itog":
+            ing_id = int(parts[2])
+            page = int(parts[3]) if len(parts) > 3 else 1
+            if len(parts) > 4 and parts[4] == "yes":
+                admin_service.toggle_ingredient(ing_id)
+                answer_callback(bot, call, "وضعیت ماده تغییر کرد")
+                show_admin_subpage(bot, chat_id, msg_id, "ingredients", page)
+            else:
+                answer_callback(bot, call)
+                text = build_screen(emoji="⚠️", title="تأیید", description="وضعیت این ماده تغییر کند؟")
+                safe_edit(bot, chat_id, msg_id, text, admin_confirm_keyboard(f"admin:itog:{ing_id}:{page}:yes", f"admin:ingredients:{page}"))
+            return
 
-        elif action == "categories":
-            show_admin_subpage(bot, chat_id, msg_id, "categories")
+        if action == "ctog":
+            cat_id = int(parts[2])
+            if len(parts) > 3 and parts[3] == "yes":
+                admin_service.toggle_category(cat_id)
+                answer_callback(bot, call, "وضعیت دسته تغییر کرد")
+                show_admin_subpage(bot, chat_id, msg_id, "categories")
+            else:
+                answer_callback(bot, call)
+                text = build_screen(emoji="⚠️", title="تأیید", description="وضعیت این دسته تغییر کند؟")
+                safe_edit(bot, chat_id, msg_id, text, admin_confirm_keyboard(f"admin:ctog:{cat_id}:yes", "admin:categories"))
+            return
 
-        elif action == "broadcast":
-            state_manager.set_state(call.from_user.id, UserState.WAITING_ADMIN_BROADCAST)
-            text = "📢 پیام همگانی رو بنویس:\n\n(برای لغو /admin بزن)"
+        if action == "subdel":
+            sub_id = int(parts[2])
+            if len(parts) > 3 and parts[3] == "yes":
+                admin_service.deactivate_substitute(sub_id)
+                answer_callback(bot, call, "جایگزین حذف شد")
+                show_admin_subpage(bot, chat_id, msg_id, "substitutes")
+            else:
+                answer_callback(bot, call)
+                text = build_screen(emoji="⚠️", title="تأیید", description="این جایگزین غیرفعال شود؟")
+                safe_edit(bot, chat_id, msg_id, text, admin_confirm_keyboard(f"admin:subdel:{sub_id}:yes", "admin:substitutes"))
+            return
+
+        if action == "broadcast":
+            answer_callback(bot, call)
+            state_manager.set_state(call.from_user.id, UserState.WAITING_ADMIN_BROADCAST, chat_id=chat_id, message_id=msg_id)
+            text = build_screen(
+                emoji="📢",
+                title="پیام همگانی",
+                description="متن پیام را بنویس و ارسال کن.",
+                details=["برای لغو /admin بزن"],
+            )
             safe_edit(bot, chat_id, msg_id, text, admin_back_keyboard())
+            return
 
-        elif action == "settings":
-            show_admin_subpage(bot, chat_id, msg_id, "settings")
+        if action == "bc":
+            sub = parts[2]
+            st = state_manager.get(call.from_user.id)
+            data = dict(st.data)
+
+            if sub == "photo":
+                answer_callback(bot, call)
+                state_manager.set_state(call.from_user.id, UserState.WAITING_ADMIN_BROADCAST_PHOTO, **data)
+                safe_edit(bot, chat_id, msg_id, "🖼 تصویر را بفرست (یا /admin برای لغو)", admin_back_keyboard())
+            elif sub == "button":
+                answer_callback(bot, call)
+                state_manager.set_state(call.from_user.id, UserState.WAITING_ADMIN_BROADCAST_BUTTON, **data)
+                safe_edit(bot, chat_id, msg_id, "🔗 دکمه را به صورت «متن|https://url» بنویس:", admin_back_keyboard())
+            elif sub == "skip":
+                answer_callback(bot, call)
+                safe_edit(bot, chat_id, msg_id, _broadcast_preview(data), admin_broadcast_preview_keyboard())
+            elif sub == "confirm":
+                answer_callback(bot, call, "در حال ارسال...")
+                ok, fail = broadcast_service.send(
+                    bot,
+                    data.get("text", ""),
+                    data.get("photo_file_id"),
+                    data.get("button_text"),
+                    data.get("button_url"),
+                )
+                state_manager.clear(call.from_user.id)
+                text = build_screen(
+                    emoji="✅",
+                    title="ارسال همگانی",
+                    details=[f"موفق: <b>{ok}</b>", f"ناموفق: <b>{fail}</b>"],
+                )
+                safe_edit(bot, chat_id, msg_id, text, admin_back_keyboard())
+            elif sub == "cancel":
+                answer_callback(bot, call)
+                state_manager.clear(call.from_user.id)
+                show_admin_dashboard(bot, chat_id, msg_id)
+            return
+
+        answer_callback(bot, call)
 
     @bot.message_handler(func=lambda m: state_manager.is_waiting(m.from_user.id, UserState.WAITING_ADMIN_BROADCAST))
-    def handle_broadcast(message: types.Message):
+    def handle_broadcast_text(message: types.Message):
         if not user_service.is_admin(message.from_user.id):
             state_manager.clear(message.from_user.id)
             return
-        state_manager.clear(message.from_user.id)
-        bot.send_message(message.chat.id, "📢 ارسال همگانی در نسخه بعدی فعال می‌شود.", parse_mode="HTML")
+        text = message.text or ""
+        st = state_manager.get(message.from_user.id)
+        chat_id = st.data.get("chat_id", message.chat.id)
+        msg_id = st.data.get("message_id")
+        data = {"text": text, "chat_id": chat_id, "message_id": msg_id}
+        state_manager.set_state(message.from_user.id, UserState.CONFIRM_ADMIN_BROADCAST, **data)
+        preview = _broadcast_preview(data)
+        if msg_id:
+            safe_edit(message.bot, chat_id, msg_id, preview, admin_broadcast_preview_keyboard())
+        else:
+            message.bot.send_message(chat_id, preview, reply_markup=admin_broadcast_preview_keyboard(), parse_mode="HTML")
+
+    @bot.message_handler(func=lambda m: state_manager.is_waiting(m.from_user.id, UserState.WAITING_ADMIN_BROADCAST_PHOTO))
+    def handle_broadcast_photo(message: types.Message):
+        if not user_service.is_admin(message.from_user.id):
+            state_manager.clear(message.from_user.id)
+            return
+        st = state_manager.get(message.from_user.id)
+        data = dict(st.data)
+        if message.photo:
+            data["photo_file_id"] = message.photo[-1].file_id
+        state_manager.set_state(message.from_user.id, UserState.CONFIRM_ADMIN_BROADCAST, **data)
+        chat_id = data.get("chat_id", message.chat.id)
+        msg_id = data.get("message_id")
+        preview = _broadcast_preview(data)
+        if msg_id:
+            safe_edit(message.bot, chat_id, msg_id, preview, admin_broadcast_preview_keyboard())
+        else:
+            message.bot.send_message(chat_id, preview, reply_markup=admin_broadcast_preview_keyboard(), parse_mode="HTML")
+
+    @bot.message_handler(func=lambda m: state_manager.is_waiting(m.from_user.id, UserState.WAITING_ADMIN_BROADCAST_BUTTON))
+    def handle_broadcast_button(message: types.Message):
+        if not user_service.is_admin(message.from_user.id):
+            state_manager.clear(message.from_user.id)
+            return
+        raw = (message.text or "").strip()
+        st = state_manager.get(message.from_user.id)
+        data = dict(st.data)
+        if "|" in raw:
+            btn_text, btn_url = raw.split("|", 1)
+            data["button_text"] = btn_text.strip()
+            data["button_url"] = btn_url.strip()
+        state_manager.set_state(message.from_user.id, UserState.CONFIRM_ADMIN_BROADCAST, **data)
+        chat_id = data.get("chat_id", message.chat.id)
+        msg_id = data.get("message_id")
+        preview = _broadcast_preview(data)
+        if msg_id:
+            safe_edit(message.bot, chat_id, msg_id, preview, admin_broadcast_preview_keyboard())
+        else:
+            message.bot.send_message(chat_id, preview, reply_markup=admin_broadcast_preview_keyboard(), parse_mode="HTML")

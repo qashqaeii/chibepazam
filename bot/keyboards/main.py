@@ -7,18 +7,20 @@ from bot.keyboards.navigation import nav_row
 def main_menu_keyboard() -> types.InlineKeyboardMarkup:
     kb = types.InlineKeyboardMarkup(row_width=2)
     kb.add(btn("🧺  با مواد خونه چی بپزم؟", "menu:pantry"))
+    kb.add(btn("🤔  نمی‌دونم چی می‌خوام", "menu:decide"))
     kb.add(
         btn("🎲  پیشنهاد شانسی", "menu:random"),
         btn("🔍  جستجوی غذا", "menu:search"),
     )
     kb.add(
+        btn("🛒  لیست خرید", "shop:cart"),
         btn("❤️  علاقه‌مندی‌ها", "menu:favorites"),
-        btn("🕘  تاریخچه", "menu:history"),
     )
     kb.add(
+        btn("🕘  تاریخچه", "menu:history"),
         btn("👤  حساب من", "menu:profile"),
-        btn("⚙️  تنظیمات", "menu:settings"),
     )
+    kb.add(btn("⚙️  تنظیمات", "menu:settings"))
     return kb
 
 

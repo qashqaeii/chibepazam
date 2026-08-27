@@ -15,9 +15,9 @@ def ingredient_qty(item: dict) -> str:
     ).strip()
 
 
-def build_shopping_list(recipe: dict, missing: list[dict]) -> str:
+def build_shopping_list(recipe: dict, missing: list[dict], servings: int | None = None) -> str:
     name = recipe.get("name") or "غذا"
-    servings = recipe.get("servings") or 4
+    target = servings or recipe.get("display_servings") or recipe.get("servings") or 4
     count = len(missing)
     lines = [
         "🛒 لیست خرید",
@@ -27,7 +27,7 @@ def build_shopping_list(recipe: dict, missing: list[dict]) -> str:
         "لطفاً در صورت امکان تهیه بفرمایید.",
         "",
         f"🍽 غذا: {name}",
-        f"👥 مناسب برای: {to_fa_digits(servings)} نفر",
+        f"👥 مناسب برای: {to_fa_digits(target)} نفر",
         f"📦 تعداد اقلام: {to_fa_digits(count)} مورد",
         "",
         "────────────",
@@ -60,3 +60,47 @@ def build_share_url(plain_text: str, bot_username: str | None = None) -> str | N
     if len(url) > 2000:
         return None
     return url
+
+
+def merge_amounts(a: str | None, b: str | None) -> str | None:
+    from utils.servings import _normalize_number, _format_number
+
+    if not a:
+        return b
+    if not b:
+        return a
+    if a == b:
+        return a
+    try:
+        from fractions import Fraction
+
+        va = float(Fraction(_normalize_number(a)))
+        vb = float(Fraction(_normalize_number(b)))
+        return _format_number(va + vb)
+    except (ValueError, ZeroDivisionError):
+        return f"{a} + {b}"
+
+
+def build_merged_shopping_list(recipe_names: list[str], items: list[dict], servings: int) -> str:
+    count = len(items)
+    lines = [
+        "🛒 لیست خرید ترکیبی",
+        "",
+        "سلام،",
+        "برای تهیه این غذاها مواد زیر لازم است:",
+        "",
+        "🍽 " + "، ".join(recipe_names[:5]) + ("…" if len(recipe_names) > 5 else ""),
+        f"👥 مناسب برای: {to_fa_digits(servings)} نفر",
+        f"📦 تعداد اقلام: {to_fa_digits(count)} مورد",
+        "",
+        "────────────",
+        "مواد موردنیاز:",
+    ]
+    for i, item in enumerate(items, start=1):
+        qty = ingredient_qty(item)
+        emoji = item.get("emoji") or "▫️"
+        item_name = item.get("name") or "ماده"
+        extra = f" — {qty}" if qty else ""
+        lines.append(f"{to_fa_digits(i)}. {emoji} {item_name}{extra}")
+    lines.extend(["────────────", "", "با تشکر 🌿"])
+    return "\n".join(lines)
